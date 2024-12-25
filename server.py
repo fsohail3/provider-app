@@ -18,7 +18,7 @@ if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
 
 # Fix the OpenAI client initialization
-client = OpenAI(api_key=os.getenv('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'))
+client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))  # Use environment variable, don't hardcode the key
 
 @app.route('/diagnose', methods=['POST', 'OPTIONS'])
 def diagnose():
