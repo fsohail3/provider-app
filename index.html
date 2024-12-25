@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Healthcare Provider Assistant</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input, textarea, select {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 10px;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        #response {
+            white-space: pre-wrap;
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            margin-top: 20px;
+        }
+        .preview-image {
+            max-width: 200px;
+            max-height: 200px;
+            margin: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 5px;
+        }
+        .image-container {
+           position: relative;
+           display: inline-block;
+        }
+        .delete-btn {
+           position: absolute;
+           top: 0;
+           right: 0;
+           background: red;
+           color: white;
+           border: none;
+           border-radius: 50%;
+           padding: 5px 8px;
+           cursor: pointer;
+
+  	.loading {
+           color: #666;
+           font-style: italic;
+    	}
+    
+    	.disclaimer {
+           margin-top: 20px;
+           padding: 10px;
+           background-color: #fff3cd;
+           border: 1px solid #ffeeba;
+           border-radius: 4px;
+           color: #856404;
+    	}
+
+
+        }
+    </style>
+</head>
+<body>
+    <h1>Healthcare Provider Assistant</h1>
+    <div class="form-group">
+        <label for="age">Patient Age:</label>
+        <input type="text" id="age" placeholder="e.g., 5 years">
+    </div>
+    <div class="form-group">
+        <label for="gender">Patient Gender:</label>
+        <select id="gender">
+            <option value="male">Male</option>
+            <option value="female">Female</option>
+            <option value="other">Other</option>
+        </select>
+    </div>
+    <div class="form-group">
+        <label for="symptoms">Primary Symptoms:</label>
+        <textarea id="symptoms" rows="4" placeholder="List main symptoms here"></textarea>
+    </div>
+    <div class="form-group">
+        <label for="duration">Duration of Symptoms:</label>
+        <input type="text" id="duration" placeholder="e.g., 3 days">
+    </div>
+    <div class="form-group">
+        <label for="additionalInfo">Additional Information:</label>
+        <textarea id="additionalInfo" rows="4" placeholder="Any relevant medical history, current medications, or other observations"></textarea>
+    </div>
+
+    <div class="form-group">
+        <label for="vitals">Vital Signs:</label>
+        <textarea id="vitals" placeholder="Temperature, Blood Pressure, Heart Rate, Respiratory Rate"></textarea>
+    </div>
+
+    <div class="form-group">
+        <label for="medicalHistory">Past Medical History:</label>
+        <textarea id="medicalHistory" placeholder="Previous conditions, surgeries, allergies"></textarea>
+    </div>
+
+    <div class="form-group">
+        <label for="medications">Current Medications:</label>
+        <textarea id="medications" placeholder="List all current medications and dosages"></textarea>
+    </div>
+
+    <div class="form-group">
+        <label for="imageUpload">Upload Images (optional):</label>
+    	<input type="file" id="imageUpload" accept="image/*" multiple onchange="previewImages(event)">
+    	<div id="imagePreview" style="margin-top: 10px; display: flex; flex-wrap: wrap; gap: 10px;"></div>
+    </div>
+
+    
+    <button onclick="getDiagnosis()">Get Diagnosis</button>
+    
+    <div id="response"></div>
+
+    <script>
+	
+	let uploadedImages = [];
+
+    function previewImages(event) {
+        const preview = document.getElementById('imagePreview');
+        preview.innerHTML = '';
+        uploadedImages = [];
+
+        const files = event.target.files;
+        for(let i = 0; i < files.length; i++) {
+            const file = files[i];
+            if (file.type.startsWith('image/')) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const container = document.createElement('div');
+                    container.className = 'image-container';
+                    
+                    const img = document.createElement('img');
+                    img.src = e.target.result;
+                    img.className = 'preview-image';
+                    
+                    const deleteBtn = document.createElement('button');
+                    deleteBtn.innerHTML = 'X';
+                    deleteBtn.className = 'delete-btn';
+                    deleteBtn.onclick = function() {
+                        container.remove();
+                        uploadedImages = uploadedImages.filter(image => image.name !== file.name);
+                    };
+
+                    container.appendChild(img);
+                    container.appendChild(deleteBtn);
+                    preview.appendChild(container);
+                    
+                    uploadedImages.push(file);
+                };
+                reader.readAsDataURL(file);
+                }
+           }
+        }
+
+
+
+        async function getDiagnosis() {
+		const formData = new FormData();
+    
+    		// Add text data
+    		const data = {
+        		age: document.getElementById('age').value,
+        		gender: document.getElementById('gender').value,
+        		symptoms: document.getElementById('symptoms').value,
+        		duration: document.getElementById('duration').value,
+        		additionalInfo: document.getElementById('additionalInfo').value,
+        		vitals: document.getElementById('vitals').value,
+        		medicalHistory: document.getElementById('medicalHistory').value,
+        		medications: document.getElementById('medications').value
+    		};
+    
+    		formData.append('data', JSON.stringify(data));
+    
+    		// Add images
+    		uploadedImages.forEach((image, index) => {
+        		formData.append(`image${index}`, image);
+    		});
+
+    		document.getElementById('response').innerText = 'Analyzing...';
+    
+    		try {
+        		const response = await fetch('https://your-app-name.onrender.com/diagnose', {
+            			method: 'POST',
+            			body: formData
+        	});
+        
+        	const result = await response.json();
+        	document.getElementById('response').innerText = result.diagnosis;
+   	 	} catch (error) {
+        		document.getElementById('response').innerText = 'Error: ' + error;
+    		}
+	}
+    </script>
+
+    <div class="disclaimer">
+       <strong>Disclaimer:</strong> This tool is designed to assist healthcare providers and should not be used as a replacement for professional medical judgment. Always use your     clinical expertise and follow standard medical protocols when making diagnostic decisions.
+    </div>
+</body>
+</html>
