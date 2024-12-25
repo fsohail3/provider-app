@@ -1,6 +1,6 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-import openai
+from openai import OpenAI
 import json
 import base64
 from werkzeug.utils import secure_filename
@@ -17,17 +17,21 @@ UPLOAD_FOLDER = 'uploads'
 if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
 
-# Change the OpenAI initialization
-openai.api_key = os.getenv('OPENAI_API_KEY')
+# Fix the OpenAI client initialization
+client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
 
 @app.route('/diagnose', methods=['POST', 'OPTIONS'])
 def diagnose():
     if request.method == "OPTIONS":
         return jsonify({"status": "ok"}), 200
-        
+    
+    # Add debug logging
+    print("Received request")
+    
     try:
         # Get JSON data
         data = json.loads(request.form['data'])
+        print(f"Received data: {data}")  # Debug log
         
         # Handle image uploads
         image_descriptions = []
