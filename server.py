@@ -6,6 +6,7 @@ import base64
 from werkzeug.utils import secure_filename
 import os
 from dotenv import load_dotenv
+import httpx
 
 load_dotenv()  # Load environment variables from .env file
 
@@ -17,8 +18,16 @@ UPLOAD_FOLDER = 'uploads'
 if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
 
-# Fix the OpenAI client initialization
-client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))  # Use environment variable, don't hardcode the key
+# Initialize OpenAI client with custom httpx client
+http_client = httpx.Client(
+    base_url="https://api.openai.com/v1",
+    timeout=60.0
+)
+
+client = OpenAI(
+    api_key=os.getenv('OPENAI_API_KEY'),
+    http_client=http_client
+)
 
 @app.route('/diagnose', methods=['POST', 'OPTIONS'])
 def diagnose():
