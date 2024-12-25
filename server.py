@@ -43,7 +43,7 @@ def diagnose():
                     with open(filepath, "rb") as image_file:
                         base64_image = base64.b64encode(image_file.read()).decode('utf-8')
                         
-                    vision_response = openai.ChatCompletion.create(
+                    vision_response = client.chat.completions.create(
                         model="gpt-4-vision-preview",
                         messages=[
                             {
@@ -60,7 +60,7 @@ def diagnose():
                             }
                         ]
                     )
-                    image_descriptions.append(vision_response.choices[0].message['content'])
+                    image_descriptions.append(vision_response.choices[0].message.content)
                 except Exception as e:
                     print(f"Error analyzing image: {str(e)}")
                     image_descriptions.append(f"Error analyzing image: {str(e)}")
@@ -86,7 +86,7 @@ Please provide:
 4. Red flags to watch for
 5. Differential diagnoses to consider"""
 
-        response = openai.ChatCompletion.create(
+        response = client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
                 {"role": "system", "content": "You are an expert pediatric diagnostic assistant. Provide evidence-based medical insights while always noting that final diagnosis should be made by a qualified healthcare provider."},
@@ -94,7 +94,7 @@ Please provide:
             ]
         )
         
-        return jsonify({"diagnosis": response.choices[0].message['content']})
+        return jsonify({"diagnosis": response.choices[0].message.content})
     except Exception as e:
         print(f"Server error: {str(e)}")
         return jsonify({"error": str(e)}), 500
