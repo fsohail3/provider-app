@@ -84,184 +84,249 @@
 <body>
     <h1>Healthcare Provider Assistant</h1>
     <div class="form-group">
-        <label for="age">Patient Age:</label>
-        <input type="text" id="age" placeholder="e.g., 5 years">
-    </div>
-    <div class="form-group">
-        <label for="gender">Patient Gender:</label>
-        <select id="gender">
-            <option value="male">Male</option>
-            <option value="female">Female</option>
-            <option value="other">Other</option>
+        <label for="queryType">What kind of assistance do you need?</label>
+        <select id="queryType" onchange="toggleFormSections()">
+            <option value="diagnosis">Patient Diagnosis</option>
+            <option value="procedure">Procedure/Treatment Guidance</option>
         </select>
     </div>
-    <div class="form-group">
-        <label for="symptoms">Primary Symptoms:</label>
-        <textarea id="symptoms" rows="4" placeholder="List main symptoms here"></textarea>
-    </div>
-    <div class="form-group">
-        <label for="duration">Duration of Symptoms:</label>
-        <input type="text" id="duration" placeholder="e.g., 3 days">
-    </div>
-    <div class="form-group">
-        <label for="additionalInfo">Additional Information:</label>
-        <textarea id="additionalInfo" rows="4" placeholder="Any relevant medical history, current medications, or other observations"></textarea>
-    </div>
 
-    <div class="form-group">
-        <label for="vitals">Vital Signs:</label>
-        <textarea id="vitals" placeholder="Temperature, Blood Pressure, Heart Rate, Respiratory Rate"></textarea>
-    </div>
-
-    <div class="form-group">
-        <label for="medicalHistory">Past Medical History:</label>
-        <textarea id="medicalHistory" placeholder="Previous conditions, surgeries, allergies"></textarea>
-    </div>
-
-    <div class="form-group">
-        <label for="medications">Current Medications:</label>
-        <textarea id="medications" placeholder="List all current medications and dosages"></textarea>
-    </div>
-
-    <div class="form-group">
-        <label for="imageUpload">Upload Images (optional):</label>
-    	<input type="file" id="imageUpload" accept="image/*" multiple onchange="previewImages(event)">
-    	<div id="imagePreview" style="margin-top: 10px; display: flex; flex-wrap: wrap; gap: 10px;"></div>
-    </div>
-
-    
-    <button onclick="getDiagnosis()">Get Diagnosis</button>
-    
-    <div id="response"></div>
-
-    <div class="protocol-reference" id="protocolSection" style="display: none;">
-        <h3>Protocol Reference</h3>
-        <div id="protocolContent"></div>
-    </div>
-
-    <div class="checklist-container" id="checklistSection" style="display: none;">
-        <h3>Procedure Checklist</h3>
-        <div id="checklistContent"></div>
-    </div>
-
-    <div class="risk-assessment" id="riskSection" style="display: none;">
-        <h3>Risk Assessment</h3>
-        <div class="risks">
-            <h4>Identified Risks</h4>
-            <ul id="risksList"></ul>
-        </div>
-        <div class="mitigations">
-            <h4>Risk Mitigation Steps</h4>
-            <ul id="mitigationsList"></ul>
-        </div>
-    </div>
-
-    <div class="medical-literature" id="literatureSection" style="display: none;">
-        <h3>Medical Literature</h3>
-        
-        <div class="literature-section">
-            <h4>Recent Research</h4>
-            <div id="pubmedResults"></div>
+    <div id="procedureSection" style="display: none;">
+        <div class="form-group">
+            <label for="procedureType">Procedure/Treatment Type:</label>
+            <input type="text" id="procedureType" placeholder="e.g., IV insertion, wound care, medication administration">
         </div>
         
-        <div class="literature-section">
-            <h4>Clinical Guidelines</h4>
-            <div id="uptodateResults"></div>
-        </div>
-        
-        <div class="literature-section">
-            <h4>Clinical Trials</h4>
-            <div id="trialsResults"></div>
+        <div class="form-group">
+            <label for="procedureContext">Specific Details:</label>
+            <textarea id="procedureContext" rows="4" placeholder="Describe specific aspects of the procedure/treatment you need guidance on"></textarea>
         </div>
     </div>
 
-    <script>
-	
-	let uploadedImages = [];
-
-    function previewImages(event) {
-        const preview = document.getElementById('imagePreview');
-        preview.innerHTML = '';
-        uploadedImages = [];
-
-        const files = event.target.files;
-        for(let i = 0; i < files.length; i++) {
-            const file = files[i];
-            if (file.type.startsWith('image/')) {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    const container = document.createElement('div');
-                    container.className = 'image-container';
-                    
-                    const img = document.createElement('img');
-                    img.src = e.target.result;
-                    img.className = 'preview-image';
-                    
-                    const deleteBtn = document.createElement('button');
-                    deleteBtn.innerHTML = 'X';
-                    deleteBtn.className = 'delete-btn';
-                    deleteBtn.onclick = function() {
-                        container.remove();
-                        uploadedImages = uploadedImages.filter(image => image.name !== file.name);
-                    };
-
-                    container.appendChild(img);
-                    container.appendChild(deleteBtn);
-                    preview.appendChild(container);
-                    
-                    uploadedImages.push(file);
-                };
-                reader.readAsDataURL(file);
-                }
-           }
-        }
-
-
-
-        async function getDiagnosis() {
-		const formData = new FormData();
-    
-    		// Add text data
-    		const data = {
-        		age: document.getElementById('age').value,
-        		gender: document.getElementById('gender').value,
-        		symptoms: document.getElementById('symptoms').value,
-        		duration: document.getElementById('duration').value,
-        		additionalInfo: document.getElementById('additionalInfo').value,
-        		vitals: document.getElementById('vitals').value,
-        		medicalHistory: document.getElementById('medicalHistory').value,
-        		medications: document.getElementById('medications').value
-    		};
-    
-    		formData.append('data', JSON.stringify(data));
-    
-    		// Add images
-    		uploadedImages.forEach((image, index) => {
-        		formData.append(`image${index}`, image);
-    		});
-
-    		document.getElementById('response').innerText = 'Analyzing...';
-    
-    		try {
-        		const response = await fetch('https://provider-app.onrender.com/diagnose', {
-            			method: 'POST',
-            			headers: {
-            				'Accept': 'application/json',
-            				'Content-Type': 'application/json'
-            			},
-            			body: formData
-        	});
+    <div id="patientSection">
+        <h3>Patient Information</h3>
+        <div class="form-group">
+            <label for="age">Patient Age:</label>
+            <input type="text" id="age" placeholder="e.g., 5 years">
+        </div>
         
-        	const result = await response.json();
-        	document.getElementById('response').innerText = result.diagnosis;
-   	 	} catch (error) {
-        		document.getElementById('response').innerText = 'Error: ' + error;
-    		}
-	}
-    </script>
+        <div class="form-group">
+            <label for="gender">Patient Gender:</label>
+            <select id="gender">
+                <option value="male">Male</option>
+                <option value="female">Female</option>
+                <option value="other">Other</option>
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label for="weight">Patient Weight:</label>
+            <input type="text" id="weight" placeholder="e.g., 70 kg">
+        </div>
+
+        <div class="form-group">
+            <label for="allergies">Known Allergies:</label>
+            <textarea id="allergies" placeholder="List any known allergies"></textarea>
+        </div>
+        
+        <div class="form-group">
+            <label for="medicalHistory">Relevant Medical History:</label>
+            <textarea id="medicalHistory" placeholder="Previous conditions, surgeries, complications"></textarea>
+        </div>
+
+        <div class="form-group">
+            <label for="currentMedications">Current Medications:</label>
+            <textarea id="currentMedications" placeholder="List all current medications and dosages"></textarea>
+        </div>
+
+        <div class="form-group">
+            <label for="vitals">Current Vital Signs:</label>
+            <textarea id="vitals" placeholder="BP, HR, RR, Temperature, O2 Sat"></textarea>
+        </div>
+    </div>
+
+    <div class="button-group">
+        <button onclick="submitQuery()" id="submitButton">Get Guidance</button>
+    </div>
+
+    <div id="responseSection">
+        <div id="alertsSection" class="alerts" style="display: none;">
+            <h3>⚠️ Important Considerations</h3>
+            <ul id="alertsList"></ul>
+        </div>
+
+        <div id="checklistSection" style="display: none;">
+            <h3>Procedure Checklist</h3>
+            <div class="checklist-content">
+                <div class="preparation">
+                    <h4>Preparation</h4>
+                    <ul id="prepList"></ul>
+                </div>
+                <div class="equipment">
+                    <h4>Required Equipment</h4>
+                    <ul id="equipmentList"></ul>
+                </div>
+                <div class="steps">
+                    <h4>Procedure Steps</h4>
+                    <ol id="stepsList"></ol>
+                </div>
+                <div class="monitoring">
+                    <h4>Monitoring Points</h4>
+                    <ul id="monitoringList"></ul>
+                </div>
+            </div>
+        </div>
+
+        <div id="riskSection" style="display: none;">
+            <h3>Risk Assessment</h3>
+            <div class="risks">
+                <h4>Patient-Specific Risks</h4>
+                <ul id="patientRisksList"></ul>
+            </div>
+            <div class="mitigations">
+                <h4>Risk Mitigation Steps</h4>
+                <ul id="mitigationsList"></ul>
+            </div>
+        </div>
+
+        <div id="referencesSection" style="display: none;">
+            <h3>References & Guidelines</h3>
+            <div id="referencesList"></div>
+        </div>
+    </div>
 
     <div class="disclaimer">
        <strong>Disclaimer:</strong> This tool is designed to assist healthcare providers and should not be used as a replacement for professional medical judgment. Always use your     clinical expertise and follow standard medical protocols when making diagnostic decisions.
     </div>
+
+    <script>
+    function toggleFormSections() {
+        const queryType = document.getElementById('queryType').value;
+        const procedureSection = document.getElementById('procedureSection');
+        const diagnosisSection = document.getElementById('diagnosisSection');
+        
+        if (queryType === 'procedure') {
+            procedureSection.style.display = 'block';
+            diagnosisSection.style.display = 'none';
+            document.getElementById('submitButton').textContent = 'Get Procedure Guidance';
+        } else {
+            procedureSection.style.display = 'none';
+            diagnosisSection.style.display = 'block';
+            document.getElementById('submitButton').textContent = 'Get Diagnosis';
+        }
+    }
+
+    async function submitQuery() {
+        const queryType = document.getElementById('queryType').value;
+        const formData = new FormData();
+        
+        // Common patient data
+        const patientData = {
+            age: document.getElementById('age').value,
+            gender: document.getElementById('gender').value,
+            weight: document.getElementById('weight').value,
+            allergies: document.getElementById('allergies').value,
+            medicalHistory: document.getElementById('medicalHistory').value,
+            currentMedications: document.getElementById('currentMedications').value,
+            vitals: document.getElementById('vitals').value
+        };
+
+        if (queryType === 'procedure') {
+            const procedureData = {
+                type: document.getElementById('procedureType').value,
+                context: document.getElementById('procedureContext').value,
+                patientInfo: patientData
+            };
+            formData.append('data', JSON.stringify(procedureData));
+            formData.append('queryType', 'procedure');
+        } else {
+            const diagnosisData = {
+                symptoms: document.getElementById('symptoms').value,
+                duration: document.getElementById('duration').value,
+                additionalInfo: document.getElementById('additionalInfo').value,
+                patientInfo: patientData
+            };
+            formData.append('data', JSON.stringify(diagnosisData));
+            formData.append('queryType', 'diagnosis');
+        }
+
+        // Handle file uploads
+        const imageUpload = document.getElementById('imageUpload');
+        if (imageUpload.files.length > 0) {
+            Array.from(imageUpload.files).forEach((file, index) => {
+                formData.append(`image${index}`, file);
+            });
+        }
+
+        try {
+            const response = await fetch('/query', {
+                method: 'POST',
+                body: formData
+            });
+            
+            const result = await response.json();
+            displayResults(result, queryType);
+        } catch (error) {
+            console.error('Error:', error);
+            alert('An error occurred while processing your request.');
+        }
+    }
+
+    function displayResults(result, queryType) {
+        // Clear previous results
+        clearResults();
+        
+        if (queryType === 'procedure') {
+            // Display procedure guidance
+            displayProcedureGuidance(result);
+        } else {
+            // Display diagnosis results
+            displayDiagnosisResults(result);
+        }
+        
+        // Show patient-specific alerts if any
+        if (result.alerts && result.alerts.length > 0) {
+            displayAlerts(result.alerts);
+        }
+    }
+
+    function displayProcedureGuidance(result) {
+        // Display checklist
+        const checklistSection = document.getElementById('checklistSection');
+        if (result.checklist) {
+            checklistSection.style.display = 'block';
+            populateChecklist(result.checklist);
+        }
+        
+        // Display risks
+        const riskSection = document.getElementById('riskSection');
+        if (result.risks) {
+            riskSection.style.display = 'block';
+            populateRisks(result.risks);
+        }
+        
+        // Display references
+        if (result.references) {
+            displayReferences(result.references);
+        }
+    }
+
+    function displayAlerts(alerts) {
+        const alertsSection = document.getElementById('alertsSection');
+        const alertsList = document.getElementById('alertsList');
+        alertsList.innerHTML = '';
+        
+        alerts.forEach(alert => {
+            const li = document.createElement('li');
+            li.className = `alert-item ${alert.severity}`;
+            li.textContent = alert.message;
+            alertsList.appendChild(li);
+        });
+        
+        alertsSection.style.display = 'block';
+    }
+
+    // Add other helper functions for populating specific sections...
+    </script>
 </body>
 </html>

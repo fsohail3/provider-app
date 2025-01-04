@@ -10,173 +10,143 @@ import httpx
 from medical_database import MedicalKnowledgeBase
 from risk_assessment import RiskAssessment
 from checklist_generator import ChecklistGenerator
+import requests
 
-load_dotenv()  # Load environment variables from .env file
+load_dotenv()
 
 app = Flask(__name__)
 CORS(app, resources={
     r"/*": {
         "origins": [
-            "https://your-render-domain.onrender.com",
-            "http://localhost:8000"  # for local development
+            "https://provider-app.onrender.com",
+            "http://localhost:8000"
         ]
     }
 })
-
-# Configure upload folder
-UPLOAD_FOLDER = 'uploads'
-if not os.path.exists(UPLOAD_FOLDER):
-    os.makedirs(UPLOAD_FOLDER)
-
-# Initialize OpenAI client with custom httpx client
-http_client = httpx.Client(
-    base_url="https://api.openai.com/v1",
-    timeout=60.0
-)
-
-client = OpenAI(
-    api_key=os.getenv('OPENAI_API_KEY'),
-    http_client=http_client
-)
 
 class MedicalAssistant:
     def __init__(self):
         self.medical_db = MedicalKnowledgeBase()
         self.risk_assessor = RiskAssessment(self.medical_db)
         self.checklist_generator = ChecklistGenerator(self.medical_db, self.risk_assessor)
+        self.openai_client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+
+    async def handle_query(self, query_type, data, images=None):
+        """Handle both diagnosis and procedure queries"""
+        try:
+            if query_type == "procedure":
+                return await self.handle_procedure_query(data)
+            else:
+                return await self.handle_diagnosis_query(data, images)
+        except Exception as e:
+            print(f"Error handling query: {str(e)}")
+            return {"error": str(e)}
+
+    async def handle_procedure_query(self, data):
+        """Handle procedure guidance requests"""
+        procedure_type = data.get('type')
+        patient_info = data.get('patientInfo', {})
         
-    async def handle_query(self, query, user_role, context=None):
-        """Enhanced query handler with online database access"""
-        response = {
-            'answer': '',
-            'references': [],
-            'checklist': None,
-            'risks': None,
-            'protocols': None,
-            'literature': []
+        # Get comprehensive procedure guidance
+        guidance = await self.medical_db.get_procedure_guidance(procedure_type, patient_info)
+        
+        # Get AI insights for patient-specific considerations
+        ai_insights = await self._get_ai_insights(procedure_type, patient_info)
+        
+        return {
+            'procedure_guidance': guidance,
+            'ai_insights': ai_insights,
+            'alerts': self._generate_alerts(guidance['risks'], patient_info)
         }
-        
-        # Get relevant medical literature
-        pubmed_results = await self.medical_db.search_pubmed(query)
-        uptodate_results = await self.medical_db.search_uptodate(query)
-        
-        # If this is about a medical condition, get clinical trials
-        if context and 'condition' in context:
-            trials = await self.medical_db.get_clinical_trials(context['condition'])
-            response['clinical_trials'] = trials
-        
-        response['literature'] = {
-            'pubmed': pubmed_results,
-            'uptodate': uptodate_results
-        }
-        
-        # Analyze query intent
-        intent = self.analyze_query_intent(query)
-        
-        if intent.get('needs_checklist'):
-            response['checklist'] = self.checklist_generator.generate_checklist(
-                intent['procedure_type'],
-                context
-            )
-            
-        if intent.get('needs_protocol'):
-            response['protocols'] = self.medical_db.get_protocol_reference(
-                intent['protocol_name'],
-                user_role
-            )
-            
-        if intent.get('needs_risk_assessment'):
-            response['risks'] = self.risk_assessor.analyze_risks(
-                intent['procedure_type'],
-                context
-            )
-            
-        return response
 
-@app.route('/diagnose', methods=['POST', 'OPTIONS'])
-def diagnose():
-    if request.method == "OPTIONS":
-        return jsonify({"status": "ok"}), 200
-    
-    # Add debug logging
-    print("Received request")
-    
-    try:
-        # Get JSON data
-        data = json.loads(request.form['data'])
-        print(f"Received data: {data}")  # Debug log
+    async def handle_diagnosis_query(self, data, images=None):
+        """Handle diagnostic queries"""
+        # Existing diagnosis logic...
+        pass
+
+    async def _get_ai_insights(self, procedure_type, patient_info):
+        """Get AI-powered insights for procedure and patient combination"""
+        prompt = self._create_procedure_prompt(procedure_type, patient_info)
         
-        # Handle image uploads
-        image_descriptions = []
-        for key in request.files:
-            file = request.files[key]
-            if file:
-                filename = secure_filename(file.filename)
-                filepath = os.path.join(UPLOAD_FOLDER, filename)
-                file.save(filepath)
-                
-                # Use OpenAI's vision model to analyze the image
-                try:
-                    with open(filepath, "rb") as image_file:
-                        base64_image = base64.b64encode(image_file.read()).decode('utf-8')
-                        
-                    vision_response = client.chat.completions.create(
-                        model="gpt-4-vision-preview",
-                        messages=[
-                            {
-                                "role": "user",
-                                "content": [
-                                    {"type": "text", "text": "Please describe any visible medical symptoms or conditions in this image, focusing on relevant clinical observations."},
-                                    {
-                                        "type": "image_url",
-                                        "image_url": {
-                                            "url": f"data:image/jpeg;base64,{base64_image}"
-                                        }
-                                    }
-                                ]
-                            }
-                        ]
-                    )
-                    image_descriptions.append(vision_response.choices[0].message.content)
-                except Exception as e:
-                    print(f"Error analyzing image: {str(e)}")
-                    image_descriptions.append(f"Error analyzing image: {str(e)}")
-                
-                # Clean up uploaded file
-                os.remove(filepath)
-
-        # Construct prompt with image descriptions
-        image_analysis = "\n\nImage Analysis:\n" + "\n".join(image_descriptions) if image_descriptions else ""
-        
-        prompt = f"""Given the following patient information:
-Age: {data.get('age', 'N/A')}
-Gender: {data.get('gender', 'N/A')}
-Symptoms: {data.get('symptoms', 'N/A')}
-Duration: {data.get('duration', 'N/A')}
-Additional Info: {data.get('additionalInfo', 'N/A')}
-{image_analysis}
-
-Please provide:
-1. Possible diagnoses (ranked by likelihood)
-2. Recommended diagnostic tests for confirmation
-3. Scientific references supporting these diagnoses
-4. Red flags to watch for
-5. Differential diagnoses to consider"""
-
-        response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
+        response = await self.openai_client.chat.completions.create(
+            model="gpt-4",
             messages=[
-                {"role": "system", "content": "You are an expert pediatric diagnostic assistant. Provide evidence-based medical insights while always noting that final diagnosis should be made by a qualified healthcare provider."},
+                {"role": "system", "content": "You are an expert medical assistant providing guidance on medical procedures."},
                 {"role": "user", "content": prompt}
             ]
         )
         
-        return jsonify({"diagnosis": response.choices[0].message.content})
+        return response.choices[0].message.content
+
+    def _create_procedure_prompt(self, procedure_type, patient_info):
+        """Create detailed prompt for procedure guidance"""
+        return f"""
+        Provide detailed guidance for {procedure_type} considering the following patient factors:
+        Age: {patient_info.get('age')}
+        Weight: {patient_info.get('weight')}
+        Medical History: {patient_info.get('medicalHistory')}
+        Current Medications: {patient_info.get('currentMedications')}
+        Allergies: {patient_info.get('allergies')}
+        Vital Signs: {patient_info.get('vitals')}
+
+        Please include:
+        1. Patient-specific considerations
+        2. Risk factors and contraindications
+        3. Modified steps if needed for this patient
+        4. Special monitoring requirements
+        5. Potential complications to watch for
+        """
+
+    def _generate_alerts(self, risks, patient_info):
+        """Generate relevant alerts based on risks and patient factors"""
+        alerts = []
+        
+        # Check for high-priority risks
+        if risks.get('contraindications'):
+            for contra in risks['contraindications']:
+                alerts.append({
+                    'severity': 'high',
+                    'message': f"CONTRAINDICATION: {contra}"
+                })
+
+        # Check patient-specific risks
+        for risk in risks.get('patient_specific', []):
+            alerts.append({
+                'severity': 'medium',
+                'message': f"Patient Risk Factor: {risk}"
+            })
+
+        return alerts
+
+@app.route('/query', methods=['POST'])
+async def handle_query():
+    try:
+        data = json.loads(request.form['data'])
+        query_type = request.form.get('queryType', 'diagnosis')
+        
+        # Handle image uploads
+        images = []
+        for key in request.files:
+            file = request.files[key]
+            if file:
+                filename = secure_filename(file.filename)
+                filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+                file.save(filepath)
+                with open(filepath, "rb") as image_file:
+                    images.append({
+                        "name": filename,
+                        "data": base64.b64encode(image_file.read()).decode('utf-8')
+                    })
+                os.remove(filepath)
+
+        medical_assistant = MedicalAssistant()
+        result = await medical_assistant.handle_query(query_type, data, images)
+        
+        return jsonify(result)
     except Exception as e:
         print(f"Server error: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
-# Add basic monitoring
 @app.route('/health', methods=['GET'])
 def health_check():
     return jsonify({
@@ -187,6 +157,24 @@ def health_check():
             "clinicaltrials": check_api_status("clinicaltrials")
         }
     })
+
+def check_api_status(api_name):
+    """Check if an API is responding"""
+    try:
+        medical_db = MedicalKnowledgeBase()
+        if api_name == "pubmed":
+            response = requests.get(f"{medical_db.api_endpoints['pubmed']}einfo.fcgi")
+        elif api_name == "uptodate":
+            response = requests.get(
+                f"{medical_db.api_endpoints['uptodate']}status",
+                headers={"Authorization": f"Bearer {medical_db.api_keys['uptodate']}"}
+            )
+        elif api_name == "clinicaltrials":
+            response = requests.get(f"{medical_db.api_endpoints['clinicaltrials']}info")
+        
+        return "available" if response.status_code == 200 else "unavailable"
+    except:
+        return "unavailable"
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8000, debug=True)
