@@ -7,11 +7,21 @@ from werkzeug.utils import secure_filename
 import os
 from dotenv import load_dotenv
 import httpx
+from medical_database import MedicalKnowledgeBase
+from risk_assessment import RiskAssessment
+from checklist_generator import ChecklistGenerator
 
 load_dotenv()  # Load environment variables from .env file
 
 app = Flask(__name__)
-CORS(app)
+CORS(app, resources={
+    r"/*": {
+        "origins": [
+            "https://your-render-domain.onrender.com",
+            "http://localhost:8000"  # for local development
+        ]
+    }
+})
 
 # Configure upload folder
 UPLOAD_FOLDER = 'uploads'
@@ -28,6 +38,60 @@ client = OpenAI(
     api_key=os.getenv('OPENAI_API_KEY'),
     http_client=http_client
 )
+
+class MedicalAssistant:
+    def __init__(self):
+        self.medical_db = MedicalKnowledgeBase()
+        self.risk_assessor = RiskAssessment(self.medical_db)
+        self.checklist_generator = ChecklistGenerator(self.medical_db, self.risk_assessor)
+        
+    async def handle_query(self, query, user_role, context=None):
+        """Enhanced query handler with online database access"""
+        response = {
+            'answer': '',
+            'references': [],
+            'checklist': None,
+            'risks': None,
+            'protocols': None,
+            'literature': []
+        }
+        
+        # Get relevant medical literature
+        pubmed_results = await self.medical_db.search_pubmed(query)
+        uptodate_results = await self.medical_db.search_uptodate(query)
+        
+        # If this is about a medical condition, get clinical trials
+        if context and 'condition' in context:
+            trials = await self.medical_db.get_clinical_trials(context['condition'])
+            response['clinical_trials'] = trials
+        
+        response['literature'] = {
+            'pubmed': pubmed_results,
+            'uptodate': uptodate_results
+        }
+        
+        # Analyze query intent
+        intent = self.analyze_query_intent(query)
+        
+        if intent.get('needs_checklist'):
+            response['checklist'] = self.checklist_generator.generate_checklist(
+                intent['procedure_type'],
+                context
+            )
+            
+        if intent.get('needs_protocol'):
+            response['protocols'] = self.medical_db.get_protocol_reference(
+                intent['protocol_name'],
+                user_role
+            )
+            
+        if intent.get('needs_risk_assessment'):
+            response['risks'] = self.risk_assessor.analyze_risks(
+                intent['procedure_type'],
+                context
+            )
+            
+        return response
 
 @app.route('/diagnose', methods=['POST', 'OPTIONS'])
 def diagnose():
@@ -111,6 +175,18 @@ Please provide:
     except Exception as e:
         print(f"Server error: {str(e)}")
         return jsonify({"error": str(e)}), 500
+
+# Add basic monitoring
+@app.route('/health', methods=['GET'])
+def health_check():
+    return jsonify({
+        "status": "healthy",
+        "api_status": {
+            "pubmed": check_api_status("pubmed"),
+            "uptodate": check_api_status("uptodate"),
+            "clinicaltrials": check_api_status("clinicaltrials")
+        }
+    })
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8000, debug=True)
