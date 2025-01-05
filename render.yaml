@@ -1,17 +1,23 @@
 services:
-  - type: web
-    name: medical-assistant
+  - name: provider-app-backend
+    type: web
     env: python
-    buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn wsgi:app
+    buildCommand: cd backend && pip install -r requirements.txt
+    startCommand: cd backend && gunicorn server:app
     envVars:
-      - key: OPENAI_API_KEY
-        sync: false
-      - key: PUBMED_API_KEY
-        sync: false
-      - key: UPTODATE_API_KEY
-        sync: false
-      - key: MEDSCAPE_API_KEY
-        sync: false
-      - key: CLINICALTRIALS_API_KEY
-        sync: false 
+      - key: PYTHON_VERSION
+        value: 3.11.11
+      - key: PORT
+        value: 10000
+
+  - name: provider-app-frontend
+    type: web
+    env: static
+    buildCommand: cd frontend && npm install && npm run build
+    staticPublishPath: ./frontend/build
+    envVars:
+      - key: REACT_APP_API_URL
+        fromService:
+          name: provider-app-backend
+          type: web
+          property: url 

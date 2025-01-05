@@ -20,9 +20,12 @@ app = Flask(__name__)
 CORS(app, resources={
     r"/*": {
         "origins": [
-            "https://provider-app.onrender.com",
+            "https://your-frontend-domain.com",
+            "http://localhost:3000",
             "http://localhost:8000"
-        ]
+        ],
+        "methods": ["GET", "POST", "OPTIONS"],
+        "allow_headers": ["Content-Type", "Authorization"]
     }
 })
 
