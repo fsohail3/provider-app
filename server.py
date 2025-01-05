@@ -11,6 +11,8 @@ from medical_database import MedicalKnowledgeBase
 from risk_assessment import RiskAssessment
 from checklist_generator import ChecklistGenerator
 import requests
+import logging
+import asyncio
 
 load_dotenv()
 
@@ -23,6 +25,13 @@ CORS(app, resources={
         ]
     }
 })
+
+app.config['UPLOAD_FOLDER'] = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
+if not os.path.exists(app.config['UPLOAD_FOLDER']):
+    os.makedirs(app.config['UPLOAD_FOLDER'])
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 class MedicalAssistant:
     def __init__(self):
@@ -119,7 +128,7 @@ class MedicalAssistant:
         return alerts
 
 @app.route('/query', methods=['POST'])
-async def handle_query():
+def handle_query():
     try:
         data = json.loads(request.form['data'])
         query_type = request.form.get('queryType', 'diagnosis')
@@ -140,11 +149,11 @@ async def handle_query():
                 os.remove(filepath)
 
         medical_assistant = MedicalAssistant()
-        result = await medical_assistant.handle_query(query_type, data, images)
+        result = asyncio.run(medical_assistant.handle_query(query_type, data, images))
         
         return jsonify(result)
     except Exception as e:
-        print(f"Server error: {str(e)}")
+        app.logger.error(f"Server error: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
 @app.route('/health', methods=['GET'])
@@ -176,5 +185,25 @@ def check_api_status(api_name):
     except:
         return "unavailable"
 
+@app.route('/')
+def home():
+    try:
+        app.logger.info('Home route accessed')
+        return jsonify({"status": "ok"})
+    except Exception as e:
+        app.logger.error(f'Error in home route: {str(e)}')
+        return jsonify({"error": str(e)}), 500
+
+@app.errorhandler(404)
+def not_found(e):
+    logger.error(f"404 error: {str(e)}")
+    return jsonify({"error": "Route not found"}), 404
+
+@app.errorhandler(500)
+def server_error(e):
+    logger.error(f"500 error: {str(e)}")
+    return jsonify({"error": "Internal server error"}), 500
+
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=8000, debug=True)
+    app.logger.setLevel(logging.INFO)
+    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 8000)))
