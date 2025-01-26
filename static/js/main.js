@@ -1,0 +1,215 @@
+document.addEventListener('DOMContentLoaded', function() {
+    const chatForm = document.getElementById('chat-form');
+    const userInput = document.getElementById('user-input');
+    const messagesArea = document.getElementById('chat-messages');
+    const patientForm = document.getElementById('patient-form');
+    const procedureSection = document.getElementById('procedure-section');
+    const newRequestButton = document.getElementById('new-request');
+    const submitButton = document.getElementById('submit-button');
+    const followUpButton = document.getElementById('follow-up-button');
+    const consultationTypes = document.getElementsByName('consultation-type');
+
+    // Chat history
+    let chatHistory = [];
+
+    // Toggle procedure section based on consultation type
+    consultationTypes.forEach(radio => {
+        radio.addEventListener('change', function() {
+            procedureSection.style.display = this.value === 'procedure' ? 'block' : 'none';
+            userInput.placeholder = this.value === 'procedure' 
+                ? "Enter any specific concerns or questions about the procedure..."
+                : "Describe symptoms for diagnosis...";
+        });
+    });
+
+    // New request button handler
+    newRequestButton.addEventListener('click', function() {
+        patientForm.reset();
+        messagesArea.innerHTML = '';
+        chatHistory = [];
+        userInput.value = '';
+        document.getElementById('diagnosis').checked = true;
+        procedureSection.style.display = 'none';
+    });
+
+    // Add click handler for main submit button
+    submitButton.addEventListener('click', function(e) {
+        if (validateForm()) {
+            chatForm.dispatchEvent(new Event('submit'));
+        } else {
+            addMessage('assistant', 'Please fill in all required fields before submitting.');
+        }
+    });
+
+    chatForm.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        const userInput = document.getElementById('user-input');
+        const buttonText = submitButton.querySelector('.button-text');
+        const isInitialQuery = userInput.style.display === 'none';
+
+        // Generate initial query based on consultation type
+        let message = '';
+        if (isInitialQuery) {
+            const consultationType = document.querySelector('input[name="consultation-type"]:checked').value;
+            if (consultationType === 'diagnosis') {
+                message = 'Please provide diagnosis recommendations based on the provided information.';
+            } else {
+                const procedureName = document.getElementById('procedure-name').value;
+                message = `Please provide procedure guidelines and checklist for ${procedureName}.`;
+            }
+        } else {
+            message = userInput.value.trim();
+            if (!message) return;
+        }
+
+        // Collect patient information
+        const patientInfo = {
+            consultationType: document.querySelector('input[name="consultation-type"]:checked').value,
+            procedureName: document.getElementById('procedure-name').value,
+            age: document.getElementById('patient-age').value,
+            gender: document.getElementById('patient-gender').value,
+            chiefComplaint: document.getElementById('chief-complaint').value,
+            bp: document.getElementById('bp').value,
+            heartRate: document.getElementById('heart-rate').value,
+            temperature: document.getElementById('temperature').value,
+            spo2: document.getElementById('spo2').value,
+            allergies: document.getElementById('allergies').value,
+            medicalHistory: document.getElementById('medical-history').value,
+            testResults: document.getElementById('test-results').value,
+            medications: document.getElementById('medications').value,
+            query: message,
+            chatHistory: chatHistory
+        };
+
+        // Add user message to chat
+        addMessage('user', message);
+        if (!isInitialQuery) {
+            userInput.value = '';
+        }
+
+        // Show loading state
+        const spinner = submitButton.querySelector('.spinner-border');
+        submitButton.disabled = true;
+        spinner.classList.remove('d-none');
+        buttonText.textContent = 'Processing...';
+
+        try {
+            const response = await fetch('/chat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(patientInfo)
+            });
+
+            const data = await response.json();
+            
+            if (data.show_payment) {
+                // Show payment container
+                document.getElementById('payment-container').style.display = 'block';
+                return;
+            }
+
+            // Add assistant response to chat and update history
+            addMessage('assistant', data.response);
+            
+            // Show remaining queries if in trial
+            if (data.queries_remaining !== null) {
+                addMessage('system', `You have ${data.queries_remaining} out of 10 free queries remaining.`);
+            }
+            
+            chatHistory.push({ role: 'user', content: message });
+            chatHistory.push({ role: 'assistant', content: data.response });
+
+            // Show input field after first response
+            if (isInitialQuery) {
+                userInput.style.display = 'block';
+                followUpButton.style.display = 'block';
+                submitButton.style.display = 'none';
+                buttonText.textContent = 'Send';
+            }
+            
+        } catch (error) {
+            console.error('Error:', error);
+            addMessage('assistant', 'Sorry, there was an error processing your request.');
+        } finally {
+            submitButton.disabled = false;
+            spinner.classList.add('d-none');
+            if (isInitialQuery) {
+                buttonText.textContent = 'Send';
+            }
+        }
+    });
+
+    function addMessage(sender, text) {
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `message ${sender}-message`;
+        
+        // Parse markdown-like formatting for checklists and risks
+        const formattedText = formatMessage(text);
+        messageDiv.innerHTML = formattedText;
+        
+        messagesArea.appendChild(messageDiv);
+        messagesArea.scrollTop = messagesArea.scrollHeight;
+    }
+
+    function formatMessage(text) {
+        // Convert markdown-style formatting to HTML with bullets instead of checkboxes
+        return text
+            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+            .replace(/- \[(x| )\] (.*)/g, '• $2')  // Convert checkboxes to bullets
+            .replace(/!RISK: (.*)/g, '<div class="risk-alert">⚠️ $1</div>')
+            .replace(/\[PROTOCOL: (.*?)\]/g, '<div class="protocol-reference">📋 Protocol: $1</div>')
+            .replace(/\n/g, '<br>');
+    }
+
+    // Add form validation before submission
+    function validateForm() {
+        const requiredFields = {
+            'patient-age': 'Age',
+            'patient-gender': 'Gender',
+            'chief-complaint': 'Chief Complaint',
+            'bp': 'Blood Pressure',
+            'heart-rate': 'Heart Rate',
+            'temperature': 'Temperature',
+            'spo2': 'SpO2'
+        };
+
+        let isValid = true;
+        let firstInvalidField = null;
+
+        for (const [id, label] of Object.entries(requiredFields)) {
+            const field = document.getElementById(id);
+            if (!field.value) {
+                isValid = false;
+                field.classList.add('is-invalid');
+                if (!firstInvalidField) firstInvalidField = field;
+            } else {
+                field.classList.remove('is-invalid');
+            }
+        }
+
+        if (!isValid && firstInvalidField) {
+            firstInvalidField.focus();
+        }
+
+        return isValid;
+    }
+
+    document.getElementById('subscribe-button').addEventListener('click', async () => {
+        try {
+            const response = await fetch('/create-checkout-session', {
+                method: 'POST',
+            });
+            const data = await response.json();
+            
+            if (data.checkoutUrl) {
+                window.location.href = data.checkoutUrl;
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Failed to initialize checkout. Please try again.');
+        }
+    });
+}); 

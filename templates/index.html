@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Healthcare Provider Assistant</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://js.stripe.com/v3/"></script>
+</head>
+<body>
+    <div class="container">
+        <nav class="navbar navbar-expand-lg navbar-light bg-light mb-3">
+            <div class="container-fluid d-flex justify-content-between">
+                <a class="navbar-brand" href="#">Healthcare AI Assistant</a>
+                <button id="new-request" class="btn btn-outline-primary">New Request</button>
+            </div>
+        </nav>
+
+        <div class="main-container">
+            <!-- Type Selection -->
+            <div class="type-selection mb-4">
+                <h5 class="mb-3">Select Consultation Type:</h5>
+                <div class="btn-group w-100" role="group">
+                    <input type="radio" class="btn-check" name="consultation-type" id="diagnosis" value="diagnosis" checked>
+                    <label class="btn btn-outline-primary flex-grow-1" for="diagnosis">Diagnosis</label>
+
+                    <input type="radio" class="btn-check" name="consultation-type" id="procedure" value="procedure">
+                    <label class="btn btn-outline-primary flex-grow-1" for="procedure">Procedure</label>
+                </div>
+            </div>
+
+            <!-- Procedure Name (hidden by default) -->
+            <div id="procedure-section" class="mb-4" style="display: none;">
+                <h5 class="mb-3">Procedure Information:</h5>
+                <div class="form-group">
+                    <label class="form-label">Procedure Name</label>
+                    <input type="text" class="form-control" id="procedure-name" placeholder="Enter procedure name">
+                </div>
+            </div>
+
+            <!-- Patient Information Form -->
+            <div class="patient-info mb-4">
+                <h5 class="mb-3">Patient Information:</h5>
+                <form id="patient-form" class="row g-3">
+                    <div class="col-12 col-md-3">
+                        <label class="form-label">Age</label>
+                        <input type="number" class="form-control" id="patient-age">
+                    </div>
+                    <div class="col-12 col-md-3">
+                        <label class="form-label">Gender</label>
+                        <select class="form-select" id="patient-gender">
+                            <option value="">Select...</option>
+                            <option value="male">Male</option>
+                            <option value="female">Female</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <label class="form-label">Chief Complaint</label>
+                        <input type="text" class="form-control" id="chief-complaint">
+                    </div>
+                    
+                    <!-- Vitals Section -->
+                    <div class="col-6 col-sm-6 col-md-3">
+                        <label class="form-label">BP (mmHg)</label>
+                        <input type="text" class="form-control" id="bp" placeholder="120/80">
+                    </div>
+                    <div class="col-6 col-sm-6 col-md-3">
+                        <label class="form-label">HR (bpm)</label>
+                        <input type="number" class="form-control" id="heart-rate">
+                    </div>
+                    <div class="col-6 col-sm-6 col-md-3">
+                        <label class="form-label">Temp (°F)</label>
+                        <input type="number" class="form-control" id="temperature" step="0.1">
+                    </div>
+                    <div class="col-6 col-sm-6 col-md-3">
+                        <label class="form-label">SpO2 (%)</label>
+                        <input type="number" class="form-control" id="spo2">
+                    </div>
+
+                    <!-- Allergies Section -->
+                    <div class="col-12">
+                        <label class="form-label">Known Allergies</label>
+                        <textarea class="form-control" id="allergies" rows="2" style="max-height: 100px"></textarea>
+                    </div>
+
+                    <!-- Medical History -->
+                    <div class="col-12">
+                        <label class="form-label">Relevant Medical History</label>
+                        <textarea class="form-control" id="medical-history" rows="3"></textarea>
+                    </div>
+
+                    <!-- Previous Test Results -->
+                    <div class="col-12">
+                        <label class="form-label">Previous Test Results</label>
+                        <textarea class="form-control" id="test-results" rows="2"></textarea>
+                    </div>
+
+                    <!-- Current Medications -->
+                    <div class="col-12">
+                        <label class="form-label">Current Medications</label>
+                        <textarea class="form-control" id="medications" rows="2"></textarea>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Submit Button Area -->
+            <div class="text-center mb-4">
+                <button type="button" class="btn btn-primary btn-lg" id="submit-button">
+                    <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+                    <span class="button-text">Get Recommendations</span>
+                </button>
+            </div>
+
+            <!-- Chat Interface -->
+            <div class="chat-container">
+                <div id="chat-messages" class="messages-area"></div>
+                
+                <div class="input-area">
+                    <form id="chat-form" class="d-flex gap-2">
+                        <!-- Initial query will be hidden until first response -->
+                        <input type="text" id="user-input" class="form-control" 
+                            placeholder="Ask follow-up questions here..."
+                            style="display: none;">
+                        <button type="submit" class="btn btn-primary" id="follow-up-button" style="display: none;">
+                            <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+                            <span class="button-text">Send</span>
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <div id="payment-container" style="display: none;" class="text-center my-4">
+                <div class="alert alert-info">
+                    <h5>You've reached your free trial limit</h5>
+                    <p>You've used all 10 free queries. Subscribe to continue using the Healthcare AI Assistant</p>
+                    <p class="mb-2">$7.99/month - Unlimited consultations</p>
+                    <button id="subscribe-button" class="btn btn-primary">
+                        Subscribe Now
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html> 
