@@ -16,4 +16,8 @@ app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///healthcare.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SECRET_KEY'] = os.urandom(24)
-db = SQLAlchemy(app) 
+db = SQLAlchemy(app)
+
+@app.route('/')
+def home():
+    return render_template('index.html') 
