@@ -151,7 +151,13 @@ document.addEventListener('DOMContentLoaded', function() {
         messageDiv.innerHTML = formattedText;
         
         messagesArea.appendChild(messageDiv);
-        messagesArea.scrollTop = messagesArea.scrollHeight;
+        // Only scroll to bottom for user follow-up messages
+        if (sender === 'user' && userInput.style.display !== 'none') {
+            messagesArea.scrollTop = messagesArea.scrollHeight;
+        } else {
+            // Keep scrolled to top for initial query and all assistant responses
+            messagesArea.scrollTop = 0;
+        }
     }
 
     function formatMessage(text) {
