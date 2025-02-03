@@ -55,8 +55,8 @@ body {
 .checklist-item {
     display: flex;
     align-items: flex-start;
-    margin: 8px 0;
-    padding: 8px;
+    margin: 2px 0;
+    padding: 4px 8px;
     background-color: #f8f9fa;
     border-radius: 4px;
     transition: background-color 0.2s;
@@ -67,7 +67,8 @@ body {
 }
 
 .checklist-item input[type="checkbox"] {
-    margin-top: 3px;
+    margin-top: 2px;
+    margin-right: 8px;
 }
 
 .checklist-item.completed {
