@@ -54,12 +54,26 @@ body {
 
 .checklist-item {
     display: flex;
-    align-items: center;
-    margin: 10px 0;
-    padding: 10px;
-    background-color: #fff;
-    border: 1px solid #ddd;
-    border-radius: 5px;
+    align-items: flex-start;
+    margin: 8px 0;
+    padding: 8px;
+    background-color: #f8f9fa;
+    border-radius: 4px;
+    transition: background-color 0.2s;
+}
+
+.checklist-item:hover {
+    background-color: #e9ecef;
+}
+
+.checklist-item input[type="checkbox"] {
+    margin-top: 3px;
+}
+
+.checklist-item.completed {
+    background-color: #e8f5e9;
+    text-decoration: line-through;
+    color: #666;
 }
 
 .risk-alert {

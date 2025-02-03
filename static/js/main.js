@@ -161,10 +161,10 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function formatMessage(text) {
-        // Convert markdown-style formatting to HTML with bullets instead of checkboxes
+        // Convert markdown-style formatting to HTML with interactive checkboxes for procedures
         return text
             .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-            .replace(/- \[(x| )\] (.*)/g, '• $2')  // Convert checkboxes to bullets
+            .replace(/□ (.*)/g, '<div class="checklist-item"><input type="checkbox" class="form-check-input me-2"> $1</div>')  // Interactive checkboxes
             .replace(/!RISK: (.*)/g, '<div class="risk-alert">⚠️ $1</div>')
             .replace(/\[PROTOCOL: (.*?)\]/g, '<div class="protocol-reference">📋 Protocol: $1</div>')
             .replace(/\n/g, '<br>');
