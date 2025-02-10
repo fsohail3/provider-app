@@ -1,5 +1,5 @@
 import os
-from flask import Flask, request, jsonify, render_template, session, redirect, url_for
+from flask import Flask, request, jsonify, render_template, session, redirect, url_for, flash
 from dotenv import load_dotenv
 from openai import OpenAI
 import stripe
@@ -8,6 +8,7 @@ from datetime import datetime, timedelta
 from cryptography.fernet import Fernet
 from sqlalchemy.types import TypeDecorator, String
 from flask_login import LoginManager, UserMixin, login_required, login_user, logout_user, current_user
+from werkzeug.security import generate_password_hash, check_password_hash
 import logging
 from logging.handlers import RotatingFileHandler
 import json
@@ -71,6 +72,12 @@ db = SQLAlchemy(app)
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
+login_manager.login_message = "Please log in to access this page."
+login_manager.login_message_category = "info"
+
+@login_manager.user_loader
+def load_user(user_id):
+    return User.query.get(user_id)
 
 # Add after imports
 from enum import Enum
@@ -399,7 +406,7 @@ def terms():
 
 @app.before_request
 def check_consent():
-    if not current_user.is_authenticated and request.endpoint not in ['login', 'static', 'privacy']:
+    if not current_user.is_authenticated and request.endpoint not in ['login', 'static', 'privacy', 'terms']:
         return redirect(url_for('login')) 
 
 # Add Florida breach notification requirements
