@@ -218,4 +218,22 @@ document.addEventListener('DOMContentLoaded', function() {
             alert('Failed to initialize checkout. Please try again.');
         }
     });
+
+    // Show consent modal if not already accepted
+    if (!localStorage.getItem('consentAccepted')) {
+        const consentModal = new bootstrap.Modal(document.getElementById('consentModal'));
+        consentModal.show();
+    }
+
+    // Handle consent checkbox
+    document.getElementById('consentCheckbox').addEventListener('change', function() {
+        document.getElementById('acceptConsent').disabled = !this.checked;
+    });
+
+    // Handle consent acceptance
+    document.getElementById('acceptConsent').addEventListener('click', function() {
+        localStorage.setItem('consentAccepted', 'true');
+        const consentModal = bootstrap.Modal.getInstance(document.getElementById('consentModal'));
+        consentModal.hide();
+    });
 }); 

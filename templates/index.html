@@ -13,9 +13,24 @@
         <nav class="navbar navbar-expand-lg navbar-light bg-light mb-3">
             <div class="container-fluid d-flex justify-content-between">
                 <a class="navbar-brand" href="#">Healthcare AI Assistant</a>
-                <button id="new-request" class="btn btn-outline-primary">New Request</button>
+                <div>
+                    <a href="{{ url_for('privacy') }}" class="btn btn-link">Privacy Policy</a>
+                    <a href="{{ url_for('terms') }}" class="btn btn-link">Terms of Service</a>
+                    <button id="new-request" class="btn btn-outline-primary">New Request</button>
+                </div>
             </div>
         </nav>
+
+        <!-- FDA and Medical Disclaimer -->
+        <div class="alert alert-info mb-3">
+            <small>
+                <strong>Important Medical Disclaimer:</strong> This software is not intended to diagnose, treat, cure, or prevent any disease. 
+                It is a clinical decision support tool to assist healthcare providers. The recommendations provided should be evaluated 
+                in conjunction with clinical judgment, patient-specific factors, and current medical guidelines.
+                <br>
+                This product is not FDA approved and is intended for use by licensed healthcare providers only.
+            </small>
+        </div>
 
         <div class="main-container">
             <!-- Type Selection -->
@@ -115,6 +130,12 @@
 
             <!-- Chat Interface -->
             <div class="chat-container">
+                <div class="alert alert-warning mb-3">
+                    <small>
+                        <strong>Emergency Notice:</strong> This tool is not intended for emergency situations. 
+                        For medical emergencies, call emergency services immediately.
+                    </small>
+                </div>
                 <div id="chat-messages" class="messages-area"></div>
                 
                 <div class="input-area">
@@ -139,6 +160,47 @@
                     <button id="subscribe-button" class="btn btn-primary">
                         Subscribe Now
                     </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Consent Modal -->
+    <div class="modal fade" id="consentModal" tabindex="-1" data-bs-backdrop="static">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Consent and Acknowledgment</h5>
+                </div>
+                <div class="modal-body">
+                    <div class="consent-text">
+                        <h6>HIPAA Compliance Agreement</h6>
+                        <p>By using this application, you acknowledge and agree that:</p>
+                        <ul>
+                            <li>You are a licensed healthcare provider</li>
+                            <li>You will maintain patient confidentiality</li>
+                            <li>You will only use this tool in accordance with HIPAA guidelines</li>
+                            <li>You understand this is a decision support tool, not a replacement for clinical judgment</li>
+                        </ul>
+                        
+                        <h6 class="mt-3">Data Processing Consent</h6>
+                        <p>You consent to:</p>
+                        <ul>
+                            <li>The processing of de-identified patient data</li>
+                            <li>Secure storage of encrypted health information</li>
+                            <li>Audit logging of system usage</li>
+                        </ul>
+                    </div>
+                    <div class="form-check mt-3">
+                        <input class="form-check-input" type="checkbox" id="consentCheckbox">
+                        <label class="form-check-label" for="consentCheckbox">
+                            I have read and agree to the terms above, the <a href="{{ url_for('privacy') }}" target="_blank">Privacy Policy</a>, 
+                            and <a href="{{ url_for('terms') }}" target="_blank">Terms of Service</a>
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary" id="acceptConsent" disabled>Accept & Continue</button>
                 </div>
             </div>
         </div>
