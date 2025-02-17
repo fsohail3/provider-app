@@ -231,9 +231,14 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // Handle consent acceptance
-    document.getElementById('acceptConsent').addEventListener('click', function() {
-        localStorage.setItem('consentAccepted', 'true');
-        const consentModal = bootstrap.Modal.getInstance(document.getElementById('consentModal'));
-        consentModal.hide();
+    document.getElementById('acceptConsent').addEventListener('click', async () => {
+        if (document.getElementById('consentCheckbox').checked) {
+            const response = await fetch('/accept-consent', {
+                method: 'POST'
+            });
+            if (response.ok) {
+                document.querySelector('.consent-modal').style.display = 'none';
+            }
+        }
     });
 }); 

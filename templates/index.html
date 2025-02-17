@@ -166,43 +166,22 @@
     </div>
 
     <!-- Consent Modal -->
-    <div class="modal fade" id="consentModal" tabindex="-1" data-bs-backdrop="static">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Consent and Acknowledgment</h5>
-                </div>
-                <div class="modal-body">
-                    <div class="consent-text">
-                        <h6>HIPAA Compliance Agreement</h6>
-                        <p>By using this application, you acknowledge and agree that:</p>
-                        <ul>
-                            <li>You are a licensed healthcare provider</li>
-                            <li>You will maintain patient confidentiality</li>
-                            <li>You will only use this tool in accordance with HIPAA guidelines</li>
-                            <li>You understand this is a decision support tool, not a replacement for clinical judgment</li>
-                        </ul>
-                        
-                        <h6 class="mt-3">Data Processing Consent</h6>
-                        <p>You consent to:</p>
-                        <ul>
-                            <li>The processing of de-identified patient data</li>
-                            <li>Secure storage of encrypted health information</li>
-                            <li>Audit logging of system usage</li>
-                        </ul>
-                    </div>
-                    <div class="form-check mt-3">
-                        <input class="form-check-input" type="checkbox" id="consentCheckbox">
-                        <label class="form-check-label" for="consentCheckbox">
-                            I have read and agree to the terms above, the <a href="{{ url_for('privacy') }}" target="_blank">Privacy Policy</a>, 
-                            and <a href="{{ url_for('terms') }}" target="_blank">Terms of Service</a>
-                        </label>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-primary" id="acceptConsent" disabled>Accept & Continue</button>
-                </div>
+    <div class="consent-modal">
+        <div class="modal-content">
+            <h5>Consent Required</h5>
+            <p>Before using this tool:</p>
+            <ul>
+                <li>This is a clinical decision support tool only</li>
+                <li>Not for emergency use</li>
+                <li>Verify all recommendations</li>
+            </ul>
+            <div class="form-check">
+                <input type="checkbox" id="consentCheckbox">
+                <label for="consentCheckbox">
+                    I understand and agree to the terms
+                </label>
             </div>
+            <button id="acceptConsent">Continue</button>
         </div>
     </div>
 
