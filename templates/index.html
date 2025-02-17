@@ -21,15 +21,19 @@
             </div>
         </nav>
 
-        <!-- FDA and Medical Disclaimer -->
-        <div class="alert alert-info mb-3">
+        <!-- Compact Disclaimer with Accept Button -->
+        <div class="alert alert-info mb-3 d-flex align-items-center justify-content-between">
             <small>
-                <strong>Important Medical Disclaimer:</strong> This software is not intended to diagnose, treat, cure, or prevent any disease. 
-                It is a clinical decision support tool to assist healthcare providers. The recommendations provided should be evaluated 
-                in conjunction with clinical judgment, patient-specific factors, and current medical guidelines.
-                <br>
-                This product is not FDA approved and is intended for use by licensed healthcare providers only.
+                <strong>Medical Disclaimer:</strong> For licensed healthcare providers only. Not for diagnosis/treatment. Use with clinical judgment.
+                Not FDA approved. <a href="{{ url_for('terms') }}">View full terms</a>
             </small>
+            <div class="ms-3">
+                <div class="form-check form-check-inline">
+                    <input type="checkbox" id="consentCheckbox" class="form-check-input">
+                    <label class="form-check-label" for="consentCheckbox">I understand</label>
+                </div>
+                <button id="acceptConsent" class="btn btn-primary btn-sm" disabled>Accept & Continue</button>
+            </div>
         </div>
 
         <div class="main-container">
@@ -37,10 +41,10 @@
             <div class="type-selection mb-4">
                 <h5 class="mb-3">Select Consultation Type:</h5>
                 <div class="btn-group w-100" role="group">
-                    <input type="radio" class="btn-check" name="consultation-type" id="diagnosis" value="diagnosis" checked>
+                    <input type="radio" class="btn-check" name="consultation-type" id="diagnosis" value="diagnosis">
                     <label class="btn btn-outline-primary flex-grow-1" for="diagnosis">Diagnosis</label>
 
-                    <input type="radio" class="btn-check" name="consultation-type" id="procedure" value="procedure">
+                    <input type="radio" class="btn-check" name="consultation-type" id="procedure" value="procedure" checked>
                     <label class="btn btn-outline-primary flex-grow-1" for="procedure">Procedure</label>
                 </div>
             </div>
@@ -162,26 +166,6 @@
                     </button>
                 </div>
             </div>
-        </div>
-    </div>
-
-    <!-- Consent Modal -->
-    <div class="consent-modal">
-        <div class="modal-content">
-            <h5>Consent Required</h5>
-            <p>Before using this tool:</p>
-            <ul>
-                <li>This is a clinical decision support tool only</li>
-                <li>Not for emergency use</li>
-                <li>Verify all recommendations</li>
-            </ul>
-            <div class="form-check">
-                <input type="checkbox" id="consentCheckbox">
-                <label for="consentCheckbox">
-                    I understand and agree to the terms
-                </label>
-            </div>
-            <button id="acceptConsent">Continue</button>
         </div>
     </div>
 

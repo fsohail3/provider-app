@@ -12,13 +12,22 @@ document.addEventListener('DOMContentLoaded', function() {
     // Chat history
     let chatHistory = [];
 
-    // Toggle procedure section based on consultation type
-    consultationTypes.forEach(radio => {
-        radio.addEventListener('change', function() {
-            procedureSection.style.display = this.value === 'procedure' ? 'block' : 'none';
-            userInput.placeholder = this.value === 'procedure' 
-                ? "Enter any specific concerns or questions about the procedure..."
-                : "Describe symptoms for diagnosis...";
+    // Show procedure section by default
+    document.addEventListener('DOMContentLoaded', () => {
+        document.getElementById('procedure-section').style.display = 'block';
+        document.getElementById('diagnosis-section').style.display = 'none';
+    });
+
+    // Handle consultation type change
+    document.querySelectorAll('input[name="consultation-type"]').forEach(radio => {
+        radio.addEventListener('change', (e) => {
+            if (e.target.value === 'procedure') {
+                document.getElementById('procedure-section').style.display = 'block';
+                document.getElementById('diagnosis-section').style.display = 'none';
+            } else {
+                document.getElementById('procedure-section').style.display = 'none';
+                document.getElementById('diagnosis-section').style.display = 'block';
+            }
         });
     });
 
@@ -237,8 +246,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 method: 'POST'
             });
             if (response.ok) {
-                document.querySelector('.consent-modal').style.display = 'none';
+                document.querySelector('.alert-info').style.display = 'none';
+                document.querySelector('.main-container').style.display = 'block';
             }
+        }
+    });
+
+    // Initially hide main container until consent
+    document.addEventListener('DOMContentLoaded', () => {
+        if (!session.get('consent_accepted')) {
+            document.querySelector('.main-container').style.display = 'none';
         }
     });
 }); 
