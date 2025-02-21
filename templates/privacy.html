@@ -67,49 +67,18 @@
 
         <!-- Consent Button -->
         <div class="text-center mt-5">
-            <div class="form-check mb-3">
-                <input type="checkbox" id="consentCheckbox" class="form-check-input" style="cursor: pointer; transform: scale(1.2);">
-                <label class="form-check-label" for="consentCheckbox" style="cursor: pointer;">
-                    I have read and understand the privacy policy
-                </label>
-            </div>
-            <button id="acceptConsent" class="btn btn-primary btn-lg" disabled style="min-width: 200px;">
-                Accept & Continue
-            </button>
+            <form action="/accept-consent" method="POST">
+                <div class="form-check mb-3">
+                    <input type="checkbox" required name="consent" id="consentCheckbox" class="form-check-input" style="cursor: pointer; transform: scale(1.2);">
+                    <label class="form-check-label" for="consentCheckbox" style="cursor: pointer;">
+                        I have read and understand the privacy policy
+                    </label>
+                </div>
+                <button type="submit" class="btn btn-primary btn-lg" style="min-width: 200px;">
+                    Accept & Continue
+                </button>
+            </form>
         </div>
-
-        <script>
-            window.onload = function() {
-                const checkbox = document.getElementById('consentCheckbox');
-                const button = document.getElementById('acceptConsent');
-                
-                checkbox.addEventListener('change', function() {
-                    button.disabled = !this.checked;
-                });
-                
-                button.addEventListener('click', function() {
-                    if (checkbox.checked) {
-                        fetch('/accept-consent', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json'
-                            }
-                        })
-                        .then(response => {
-                            if (response.ok) {
-                                window.location.href = '/';
-                            } else {
-                                throw new Error('Consent request failed');
-                            }
-                        })
-                        .catch(error => {
-                            console.error('Error:', error);
-                            alert('There was an error processing your consent. Please try again.');
-                        });
-                    }
-                });
-            };
-        </script>
     </div>
 </body>
 </html> 
