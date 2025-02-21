@@ -79,27 +79,36 @@
         </div>
 
         <script>
-            document.getElementById('consentCheckbox').addEventListener('change', function() {
-                document.getElementById('acceptConsent').disabled = !this.checked;
-            });
-
-            document.getElementById('acceptConsent').addEventListener('click', async () => {
-                if (document.getElementById('consentCheckbox').checked) {
-                    const response = await fetch('/accept-consent', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        }
-                    });
-                    if (response.ok) {
-                        window.location.href = '/';
+            window.onload = function() {
+                const checkbox = document.getElementById('consentCheckbox');
+                const button = document.getElementById('acceptConsent');
+                
+                checkbox.addEventListener('change', function() {
+                    button.disabled = !this.checked;
+                });
+                
+                button.addEventListener('click', function() {
+                    if (checkbox.checked) {
+                        fetch('/accept-consent', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            }
+                        })
+                        .then(response => {
+                            if (response.ok) {
+                                window.location.href = '/';
+                            } else {
+                                throw new Error('Consent request failed');
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error:', error);
+                            alert('There was an error processing your consent. Please try again.');
+                        });
                     }
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('There was an error processing your consent. Please try again.');
-            });
+                });
+            };
         </script>
     </div>
 </body>
