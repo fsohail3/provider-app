@@ -68,8 +68,8 @@
         <!-- Consent Button -->
         <div class="text-center mt-5">
             <div class="form-check mb-3">
-                <input type="checkbox" id="consentCheckbox" class="form-check-input" style="cursor: pointer;">
-                <label class="form-check-label" for="consentCheckbox">
+                <input type="checkbox" id="consentCheckbox" class="form-check-input" style="cursor: pointer; transform: scale(1.2);">
+                <label class="form-check-label" for="consentCheckbox" style="cursor: pointer;">
                     I have read and understand the privacy policy
                 </label>
             </div>
@@ -79,25 +79,26 @@
         </div>
 
         <script>
-            // Wait for DOM to be fully loaded
-            document.addEventListener('DOMContentLoaded', () => {
-                document.getElementById('consentCheckbox').addEventListener('change', function() {
-                    document.getElementById('acceptConsent').disabled = !this.checked;
-                });
+            document.getElementById('consentCheckbox').addEventListener('change', function() {
+                document.getElementById('acceptConsent').disabled = !this.checked;
+            });
 
-                document.getElementById('acceptConsent').addEventListener('click', async () => {
-                    if (document.getElementById('consentCheckbox').checked) {
-                        const response = await fetch('/accept-consent', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json'
-                            }
-                        });
-                        if (response.ok) {
-                            window.location.href = '/';
+            document.getElementById('acceptConsent').addEventListener('click', async () => {
+                if (document.getElementById('consentCheckbox').checked) {
+                    const response = await fetch('/accept-consent', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
                         }
+                    });
+                    if (response.ok) {
+                        window.location.href = '/';
                     }
-                });
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('There was an error processing your consent. Please try again.');
             });
         </script>
     </div>
