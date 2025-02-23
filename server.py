@@ -271,4 +271,4 @@ def accept_consent():
     db.session.add(consent)
     db.session.commit()
     
-    return jsonify({'status': 'success'}) 
+    return redirect(url_for('home')) 
