@@ -67,34 +67,50 @@
 
         <!-- Consent Button -->
         <div class="text-center mt-5">
-            <form action="/accept-consent" method="POST">
-                <div class="form-check mb-3">
-                    <input type="checkbox" required name="consent" id="consentCheckbox" class="form-check-input" style="cursor: pointer; transform: scale(1.2); margin-right: 5px;">
-                    <label class="form-check-label" for="consentCheckbox" style="cursor: pointer;">
-                        I have read and understand the privacy policy
-                    </label>
-                </div>
-                <button type="submit" class="btn btn-primary btn-lg" style="min-width: 200px;">
+            <div style="display: inline-flex; align-items: center; gap: 8px; margin-bottom: 20px;">
+                <input type="checkbox" id="consentCheckbox" style="cursor: pointer; transform: scale(1.2); margin: 0;">
+                <label for="consentCheckbox" style="cursor: pointer; user-select: none; margin: 0;">
+                    I have read and understand the privacy policy
+                </label>
+            </div>
+            <div>
+                <button onclick="submitConsent()" id="acceptButton" class="btn btn-primary btn-lg" style="min-width: 200px;" disabled>
                     Accept & Continue
                 </button>
-            </form>
+            </div>
         </div>
 
         <script>
-            document.querySelector('form').addEventListener('submit', async (e) => {
-                e.preventDefault();
-                if (document.getElementById('consentCheckbox').checked) {
+            document.getElementById('consentCheckbox').addEventListener('change', function() {
+                document.getElementById('acceptButton').disabled = !this.checked;
+            });
+            
+            async function submitConsent() {
+                const button = document.getElementById('acceptButton');
+                button.disabled = true;
+                button.innerHTML = 'Processing...';
+
+                try {
                     const response = await fetch('/accept-consent', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json'
                         }
                     });
+                    
                     if (response.ok) {
-                        window.location.href = '/';
+                        const data = await response.json();
+                        window.location.href = data.redirect;
+                    } else {
+                        throw new Error('Failed to process consent');
                     }
+                } catch (error) {
+                    console.error('Error:', error);
+                    button.disabled = false;
+                    button.innerHTML = 'Accept & Continue';
+                    alert('Error processing consent. Please try again.');
                 }
-            });
+            }
         </script>
     </div>
 </body>
