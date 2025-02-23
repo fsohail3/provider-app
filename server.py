@@ -272,6 +272,7 @@ def accept_consent():
 
     session['consent_accepted'] = True
     session['consent_date'] = datetime.utcnow().isoformat()
+    session.modified = True  # Force session modification
     
     app.logger.info(f"Processing consent for session {session['session_id']} from IP {request.remote_addr}")
     
@@ -284,7 +285,8 @@ def accept_consent():
     
     app.logger.info(f"Consent saved to database, redirecting to home. Session ID: {session['session_id']}")
     
-    # Set session cookie and return redirect
-    response = make_response(redirect(url_for('home')))
-    response.set_cookie('session_consent', 'true', secure=True, httponly=True)
-    return response 
+    # Return JSON response instead of redirect
+    return jsonify({
+        'status': 'success',
+        'redirect_url': url_for('home')
+    }), 200 
