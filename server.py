@@ -73,10 +73,14 @@ class ConsentTracking(db.Model):
 # Update consent check
 @app.before_request
 def check_consent():
-    if request.endpoint not in ['static', 'privacy', 'terms']:
-        consent = session.get('consent_accepted')
-        if not consent:
-            return redirect(url_for('privacy'))
+    # Skip consent check for static files, privacy page, terms page, and the consent submission endpoint
+    if request.endpoint in ['static', 'privacy', 'terms'] or request.path == '/accept-consent':
+        return
+    
+    consent = session.get('consent_accepted')
+    if not consent:
+        app.logger.info(f"No consent found, redirecting to privacy. Session ID: {session.get('session_id', 'none')}")
+        return redirect(url_for('privacy'))
 
 # Create database tables
 with app.app_context():
