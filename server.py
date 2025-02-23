@@ -265,28 +265,30 @@ def terms():
 
 @app.route('/accept-consent', methods=['POST'])
 def accept_consent():
-    # Generate a unique session ID if not exists
-    if not session.get('session_id'):
-        session['session_id'] = os.urandom(16).hex()
-        app.logger.info(f"Generated new session ID: {session['session_id']}")
+    try:
+        # Generate a unique session ID if not exists
+        if not session.get('session_id'):
+            session['session_id'] = os.urandom(16).hex()
+            app.logger.info(f"Generated new session ID: {session['session_id']}")
 
-    session['consent_accepted'] = True
-    session['consent_date'] = datetime.utcnow().isoformat()
-    session.modified = True  # Force session modification
-    
-    app.logger.info(f"Processing consent for session {session['session_id']} from IP {request.remote_addr}")
-    
-    consent = ConsentTracking(
-        session_id=session.get('session_id'),
-        ip_address=request.remote_addr
-    )
-    db.session.add(consent)
-    db.session.commit()
-    
-    app.logger.info(f"Consent saved to database, redirecting to home. Session ID: {session['session_id']}")
-    
-    # Return JSON response instead of redirect
-    return jsonify({
-        'status': 'success',
-        'redirect_url': url_for('home')
-    }), 200 
+        session['consent_accepted'] = True
+        session['consent_date'] = datetime.utcnow().isoformat()
+        session.modified = True  # Force session modification
+        
+        app.logger.info(f"Session data before redirect: consent_accepted={session.get('consent_accepted')}, session_id={session.get('session_id')}")
+        
+        consent = ConsentTracking(
+            session_id=session.get('session_id'),
+            ip_address=request.remote_addr
+        )
+        db.session.add(consent)
+        db.session.commit()
+        
+        app.logger.info("Consent saved to database successfully")
+        
+        # Simple redirect
+        app.logger.info("Redirecting to home page")
+        return redirect(url_for('home'))
+    except Exception as e:
+        app.logger.error(f"Error in accept_consent: {str(e)}")
+        return "Error processing consent", 500 

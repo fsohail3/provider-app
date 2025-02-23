@@ -95,27 +95,26 @@
                 try {
                     const response = await fetch('/accept-consent', {
                         method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Accept': 'application/json'
-                        },
                         credentials: 'same-origin'
                     });
                     
                     console.log('Response received:', response.status);
+                    console.log('Response type:', response.type);
+                    console.log('Is redirected:', response.redirected);
+                    console.log('Response URL:', response.url);
                     
-                    if (response.ok) {
-                        const data = await response.json();
-                        console.log('Redirecting to:', data.redirect_url);
-                        window.location.href = data.redirect_url;
+                    if (response.redirected) {
+                        console.log('Following redirect to:', response.url);
+                        window.location.href = response.url;
                     } else {
+                        console.log('No redirect received, response:', await response.text());
                         throw new Error('Failed to process consent');
                     }
                 } catch (error) {
                     console.error('Error:', error);
                     button.disabled = false;
                     button.innerHTML = 'Accept & Continue';
-                    alert('Error processing consent. Please try again.');
+                    alert('Error processing consent: ' + error.message + '. Please try again or contact support if the issue persists.');
                 }
             }
         </script>
