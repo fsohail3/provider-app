@@ -83,12 +83,14 @@
         <script>
             document.getElementById('consentCheckbox').addEventListener('change', function() {
                 document.getElementById('acceptButton').disabled = !this.checked;
+                console.log('Checkbox state changed:', this.checked);
             });
             
             async function submitConsent() {
                 const button = document.getElementById('acceptButton');
                 button.disabled = true;
                 button.innerHTML = 'Processing...';
+                console.log('Submitting consent...');
 
                 try {
                     const response = await fetch('/accept-consent', {
@@ -96,11 +98,15 @@
                         headers: {
                             'Content-Type': 'application/x-www-form-urlencoded'
                         },
-                        redirect: 'follow'
+                        redirect: 'follow',
+                        credentials: 'same-origin'
                     });
                     
+                    console.log('Response received:', response.status, response.redirected ? 'Redirecting to: ' + response.url : 'No redirect');
+                    
                     if (response.redirected) {
-                        window.location.href = response.url;
+                        console.log('Following redirect to:', response.url);
+                        window.location.replace(response.url);
                     } else if (!response.ok) {
                         throw new Error('Failed to process consent');
                     }

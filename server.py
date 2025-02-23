@@ -1,5 +1,5 @@
 import os
-from flask import Flask, request, jsonify, render_template, session, redirect, url_for
+from flask import Flask, request, jsonify, render_template, session, redirect, url_for, make_response
 from dotenv import load_dotenv
 from openai import OpenAI
 import stripe
@@ -84,6 +84,10 @@ with app.app_context():
 
 @app.route('/')
 def home():
+    if not session.get('consent_accepted'):
+        app.logger.info(f"No consent found, redirecting to privacy. Session ID: {session.get('session_id', 'none')}")
+        return redirect(url_for('privacy'))
+    app.logger.info(f"Consent verified, rendering main app. Session ID: {session.get('session_id', 'none')}")
     return render_template('index.html')
 
 @app.route('/chat', methods=['POST'])
@@ -261,8 +265,15 @@ def terms():
 
 @app.route('/accept-consent', methods=['POST'])
 def accept_consent():
+    # Generate a unique session ID if not exists
+    if not session.get('session_id'):
+        session['session_id'] = os.urandom(16).hex()
+        app.logger.info(f"Generated new session ID: {session['session_id']}")
+
     session['consent_accepted'] = True
     session['consent_date'] = datetime.utcnow().isoformat()
+    
+    app.logger.info(f"Processing consent for session {session['session_id']} from IP {request.remote_addr}")
     
     consent = ConsentTracking(
         session_id=session.get('session_id'),
@@ -271,4 +282,9 @@ def accept_consent():
     db.session.add(consent)
     db.session.commit()
     
-    return redirect(url_for('home')) 
+    app.logger.info(f"Consent saved to database, redirecting to home. Session ID: {session['session_id']}")
+    
+    # Set session cookie and return redirect
+    response = make_response(redirect(url_for('home')))
+    response.set_cookie('session_consent', 'true', secure=True, httponly=True)
+    return response 
