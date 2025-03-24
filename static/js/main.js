@@ -42,18 +42,29 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
-    // Handle submit button click (with null check)
+    // Handle submit button click (with debug logging)
     if (submitButton) {
-        submitButton.addEventListener('click', function() {
+        submitButton.addEventListener('click', function(e) {
             console.log('Submit button clicked');
+            console.log('Button properties:', {
+                disabled: submitButton.disabled,
+                display: submitButton.style.display,
+                classList: Array.from(submitButton.classList)
+            });
+
+            // Prevent any default form submission
+            e.preventDefault();
+            
             if (validateForm()) {
-                console.log('Form validation passed');
+                console.log('Form validation passed, calling handleSubmission');
                 handleSubmission();
             } else {
                 console.log('Form validation failed');
-                addMessage('assistant', 'Please fill in all required fields before submitting.');
+                addMessage('assistant', 'Please fill in the required fields before submitting.');
             }
         });
+    } else {
+        console.error('Submit button not found in DOM');
     }
 
     // New request button handler (with null check)
@@ -70,43 +81,64 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Handle form submission logic
     async function handleSubmission() {
+        console.log('Starting form submission');
         const buttonText = submitButton.querySelector('.button-text');
+        const spinner = submitButton.querySelector('.spinner-border');
         
         // Generate initial query based on consultation type
         const consultationType = document.querySelector('input[name="consultation-type"]:checked').value;
+        console.log('Consultation type:', consultationType);
+        
+        const procedureName = document.getElementById('procedure-name').value;
+        console.log('Procedure name:', procedureName);
+        
         const message = consultationType === 'diagnosis' 
             ? 'Please provide diagnosis recommendations based on the provided information.'
-            : `Please provide procedure guidelines and checklist for ${document.getElementById('procedure-name').value}.`;
+            : `Please provide procedure guidelines and checklist for ${procedureName}.`;
 
         // Collect patient information
         const patientInfo = {
             consultationType: consultationType,
-            procedureName: document.getElementById('procedure-name').value,
-            age: document.getElementById('patient-age').value,
-            gender: document.getElementById('patient-gender').value,
-            chiefComplaint: document.getElementById('chief-complaint').value,
-            bp: document.getElementById('bp').value,
-            heartRate: document.getElementById('heart-rate').value,
-            temperature: document.getElementById('temperature').value,
-            spo2: document.getElementById('spo2').value,
-            allergies: document.getElementById('allergies').value,
-            medicalHistory: document.getElementById('medical-history').value,
-            testResults: document.getElementById('test-results').value,
-            medications: document.getElementById('medications').value,
-            query: message,
-            chatHistory: chatHistory
+            procedureName: procedureName
         };
+
+        // Only add other fields if they have values
+        const optionalFields = {
+            'age': 'patient-age',
+            'gender': 'patient-gender',
+            'chiefComplaint': 'chief-complaint',
+            'bp': 'bp',
+            'heartRate': 'heart-rate',
+            'temperature': 'temperature',
+            'spo2': 'spo2',
+            'allergies': 'allergies',
+            'medicalHistory': 'medical-history',
+            'testResults': 'test-results',
+            'medications': 'medications'
+        };
+
+        for (const [key, id] of Object.entries(optionalFields)) {
+            const field = document.getElementById(id);
+            if (field && field.value) {
+                patientInfo[key] = field.value;
+            }
+        }
+
+        patientInfo.query = message;
+        patientInfo.chatHistory = chatHistory;
+
+        console.log('Submitting request with data:', patientInfo);
 
         // Add user message to chat
         addMessage('user', message);
 
         // Show loading state
-        const spinner = submitButton.querySelector('.spinner-border');
         submitButton.disabled = true;
         spinner.classList.remove('d-none');
         buttonText.textContent = 'Processing...';
 
         try {
+            console.log('Sending fetch request to /chat');
             const response = await fetch('/chat', {
                 method: 'POST',
                 headers: {
@@ -115,7 +147,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 body: JSON.stringify(patientInfo)
             });
 
+            console.log('Response received:', response.status);
             const data = await response.json();
+            console.log('Response data received');
             
             if (data.show_payment) {
                 document.getElementById('payment-container').style.display = 'block';
@@ -138,8 +172,8 @@ document.addEventListener('DOMContentLoaded', function() {
             submitButton.style.display = 'none';
             
         } catch (error) {
-            console.error('Error:', error);
-            addMessage('assistant', 'Sorry, there was an error processing your request.');
+            console.error('Error during submission:', error);
+            addMessage('assistant', 'Sorry, there was an error processing your request. Please try again.');
         } finally {
             submitButton.disabled = false;
             spinner.classList.add('d-none');
@@ -234,6 +268,25 @@ document.addEventListener('DOMContentLoaded', function() {
         const consultationType = document.querySelector('input[name="consultation-type"]:checked').value;
         console.log('Validating form for type:', consultationType);
 
+        // For procedure type, only require procedure name
+        if (consultationType === 'procedure') {
+            const procedureName = document.getElementById('procedure-name');
+            console.log('Procedure name value:', procedureName ? procedureName.value : 'field not found');
+            
+            if (!procedureName || !procedureName.value.trim()) {
+                if (procedureName) {
+                    procedureName.classList.add('is-invalid');
+                    procedureName.focus();
+                }
+                console.log('Validation failed: Procedure name required');
+                return false;
+            }
+            
+            console.log('Validation passed: Procedure name provided');
+            return true;
+        }
+
+        // For diagnosis type, require all fields
         const requiredFields = {
             'patient-age': 'Age',
             'patient-gender': 'Gender',
@@ -243,11 +296,6 @@ document.addEventListener('DOMContentLoaded', function() {
             'temperature': 'Temperature',
             'spo2': 'SpO2'
         };
-
-        // Add procedure name to required fields if in procedure mode
-        if (consultationType === 'procedure') {
-            requiredFields['procedure-name'] = 'Procedure Name';
-        }
 
         let isValid = true;
         let firstInvalidField = null;
@@ -264,7 +312,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 console.log('Invalid field:', label);
             } else {
-                field.classList.remove('is-invalid');
+                if (field) field.classList.remove('is-invalid');
             }
         }
 
