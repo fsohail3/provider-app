@@ -30,6 +30,15 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
+    // Handle submit button click
+    submitButton.addEventListener('click', function() {
+        if (validateForm()) {
+            handleSubmission();
+        } else {
+            addMessage('assistant', 'Please fill in all required fields before submitting.');
+        }
+    });
+
     // New request button handler
     newRequestButton.addEventListener('click', function() {
         patientForm.reset();
@@ -41,15 +50,8 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('diagnosis-section').style.display = 'none';
     });
 
-    // Handle form submission
-    patientForm.addEventListener('submit', async function(e) {
-        e.preventDefault();
-        
-        if (!validateForm()) {
-            addMessage('assistant', 'Please fill in all required fields before submitting.');
-            return;
-        }
-
+    // Handle form submission logic
+    async function handleSubmission() {
         const buttonText = submitButton.querySelector('.button-text');
         
         // Generate initial query based on consultation type
@@ -124,6 +126,60 @@ document.addEventListener('DOMContentLoaded', function() {
             submitButton.disabled = false;
             spinner.classList.add('d-none');
             buttonText.textContent = 'Get Recommendations';
+        }
+    }
+
+    // Handle follow-up chat form
+    chatForm.addEventListener('submit', async function(e) {
+        e.preventDefault();  // Prevent form from submitting normally
+        
+        const message = userInput.value.trim();
+        if (!message) return;
+
+        // Add user message to chat
+        addMessage('user', message);
+        userInput.value = '';
+
+        // Show loading state
+        const spinner = followUpButton.querySelector('.spinner-border');
+        followUpButton.disabled = true;
+        spinner.classList.remove('d-none');
+
+        try {
+            const response = await fetch('/chat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    query: message,
+                    chatHistory: chatHistory
+                })
+            });
+
+            const data = await response.json();
+            
+            if (data.show_payment) {
+                document.getElementById('payment-container').style.display = 'block';
+                return;
+            }
+
+            // Add assistant response to chat
+            addMessage('assistant', data.response);
+            
+            if (data.queries_remaining !== null) {
+                addMessage('system', `You have ${data.queries_remaining} out of 10 free queries remaining.`);
+            }
+            
+            chatHistory.push({ role: 'user', content: message });
+            chatHistory.push({ role: 'assistant', content: data.response });
+            
+        } catch (error) {
+            console.error('Error:', error);
+            addMessage('assistant', 'Sorry, there was an error processing your request.');
+        } finally {
+            followUpButton.disabled = false;
+            spinner.classList.add('d-none');
         }
     });
 
