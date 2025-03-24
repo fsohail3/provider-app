@@ -12,11 +12,10 @@ document.addEventListener('DOMContentLoaded', function() {
     // Chat history
     let chatHistory = [];
 
-    // Show procedure section by default
-    document.addEventListener('DOMContentLoaded', () => {
-        document.getElementById('procedure-section').style.display = 'block';
-        document.getElementById('diagnosis-section').style.display = 'none';
-    });
+    // Set procedure as default and show its section
+    document.getElementById('procedure').checked = true;
+    document.getElementById('procedure-section').style.display = 'block';
+    document.getElementById('diagnosis-section').style.display = 'none';
 
     // Handle consultation type change
     document.querySelectorAll('input[name="consultation-type"]').forEach(radio => {
@@ -37,8 +36,9 @@ document.addEventListener('DOMContentLoaded', function() {
         messagesArea.innerHTML = '';
         chatHistory = [];
         userInput.value = '';
-        document.getElementById('diagnosis').checked = true;
-        procedureSection.style.display = 'none';
+        document.getElementById('procedure').checked = true;
+        document.getElementById('procedure-section').style.display = 'block';
+        document.getElementById('diagnosis-section').style.display = 'none';
     });
 
     // Add click handler for main submit button
