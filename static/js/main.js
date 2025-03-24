@@ -4,51 +4,69 @@ document.addEventListener('DOMContentLoaded', function() {
     const userInput = document.getElementById('user-input');
     const messagesArea = document.getElementById('chat-messages');
     const procedureSection = document.getElementById('procedure-section');
+    const diagnosisSection = document.getElementById('diagnosis-section');
     const newRequestButton = document.getElementById('new-request');
     const submitButton = document.getElementById('submit-button');
     const followUpButton = document.getElementById('follow-up-button');
     const consultationTypes = document.getElementsByName('consultation-type');
 
+    console.log('DOM Content Loaded');
+    console.log('Elements found:', {
+        chatForm: !!chatForm,
+        patientForm: !!patientForm,
+        procedureSection: !!procedureSection,
+        submitButton: !!submitButton
+    });
+
     // Chat history
     let chatHistory = [];
 
-    // Set procedure as default and show its section
-    document.getElementById('procedure').checked = true;
-    document.getElementById('procedure-section').style.display = 'block';
-    document.getElementById('diagnosis-section').style.display = 'none';
+    // Set procedure as default
+    const procedureRadio = document.getElementById('procedure');
+    if (procedureRadio) {
+        procedureRadio.checked = true;
+    }
+
+    // Show procedure section by default (with null check)
+    if (procedureSection) {
+        procedureSection.style.display = 'block';
+    }
 
     // Handle consultation type change
     document.querySelectorAll('input[name="consultation-type"]').forEach(radio => {
         radio.addEventListener('change', (e) => {
-            if (e.target.value === 'procedure') {
-                document.getElementById('procedure-section').style.display = 'block';
-                document.getElementById('diagnosis-section').style.display = 'none';
-            } else {
-                document.getElementById('procedure-section').style.display = 'none';
-                document.getElementById('diagnosis-section').style.display = 'block';
+            console.log('Consultation type changed:', e.target.value);
+            if (procedureSection) {
+                procedureSection.style.display = e.target.value === 'procedure' ? 'block' : 'none';
             }
         });
     });
 
-    // Handle submit button click
-    submitButton.addEventListener('click', function() {
-        if (validateForm()) {
-            handleSubmission();
-        } else {
-            addMessage('assistant', 'Please fill in all required fields before submitting.');
-        }
-    });
+    // Handle submit button click (with null check)
+    if (submitButton) {
+        submitButton.addEventListener('click', function() {
+            console.log('Submit button clicked');
+            if (validateForm()) {
+                console.log('Form validation passed');
+                handleSubmission();
+            } else {
+                console.log('Form validation failed');
+                addMessage('assistant', 'Please fill in all required fields before submitting.');
+            }
+        });
+    }
 
-    // New request button handler
-    newRequestButton.addEventListener('click', function() {
-        patientForm.reset();
-        messagesArea.innerHTML = '';
-        chatHistory = [];
-        userInput.value = '';
-        document.getElementById('procedure').checked = true;
-        document.getElementById('procedure-section').style.display = 'block';
-        document.getElementById('diagnosis-section').style.display = 'none';
-    });
+    // New request button handler (with null check)
+    if (newRequestButton && patientForm && procedureSection) {
+        newRequestButton.addEventListener('click', function() {
+            patientForm.reset();
+            if (messagesArea) messagesArea.innerHTML = '';
+            chatHistory = [];
+            if (userInput) userInput.value = '';
+            if (procedureRadio) procedureRadio.checked = true;
+            procedureSection.style.display = 'block';
+        });
+    }
 
     // Handle form submission logic
     async function handleSubmission() {
@@ -213,6 +231,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Add form validation before submission
     function validateForm() {
+        const consultationType = document.querySelector('input[name="consultation-type"]:checked').value;
+        console.log('Validating form for type:', consultationType);
+
         const requiredFields = {
             'patient-age': 'Age',
             'patient-gender': 'Gender',
@@ -223,15 +244,25 @@ document.addEventListener('DOMContentLoaded', function() {
             'spo2': 'SpO2'
         };
 
+        // Add procedure name to required fields if in procedure mode
+        if (consultationType === 'procedure') {
+            requiredFields['procedure-name'] = 'Procedure Name';
+        }
+
         let isValid = true;
         let firstInvalidField = null;
 
         for (const [id, label] of Object.entries(requiredFields)) {
             const field = document.getElementById(id);
-            if (!field.value) {
+            console.log('Checking field:', id, 'Value:', field ? field.value : 'field not found');
+            
+            if (!field || !field.value) {
                 isValid = false;
-                field.classList.add('is-invalid');
-                if (!firstInvalidField) firstInvalidField = field;
+                if (field) {
+                    field.classList.add('is-invalid');
+                    if (!firstInvalidField) firstInvalidField = field;
+                }
+                console.log('Invalid field:', label);
             } else {
                 field.classList.remove('is-invalid');
             }
@@ -241,6 +272,7 @@ document.addEventListener('DOMContentLoaded', function() {
             firstInvalidField.focus();
         }
 
+        console.log('Form validation result:', isValid);
         return isValid;
     }
 
