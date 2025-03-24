@@ -1,8 +1,8 @@
 document.addEventListener('DOMContentLoaded', function() {
     const chatForm = document.getElementById('chat-form');
+    const patientForm = document.getElementById('patient-form');
     const userInput = document.getElementById('user-input');
     const messagesArea = document.getElementById('chat-messages');
-    const patientForm = document.getElementById('patient-form');
     const procedureSection = document.getElementById('procedure-section');
     const newRequestButton = document.getElementById('new-request');
     const submitButton = document.getElementById('submit-button');
@@ -41,40 +41,26 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('diagnosis-section').style.display = 'none';
     });
 
-    // Add click handler for main submit button
-    submitButton.addEventListener('click', function(e) {
-        if (validateForm()) {
-            chatForm.dispatchEvent(new Event('submit'));
-        } else {
-            addMessage('assistant', 'Please fill in all required fields before submitting.');
-        }
-    });
-
-    chatForm.addEventListener('submit', async function(e) {
+    // Handle form submission
+    patientForm.addEventListener('submit', async function(e) {
         e.preventDefault();
         
-        const userInput = document.getElementById('user-input');
-        const buttonText = submitButton.querySelector('.button-text');
-        const isInitialQuery = userInput.style.display === 'none';
-
-        // Generate initial query based on consultation type
-        let message = '';
-        if (isInitialQuery) {
-            const consultationType = document.querySelector('input[name="consultation-type"]:checked').value;
-            if (consultationType === 'diagnosis') {
-                message = 'Please provide diagnosis recommendations based on the provided information.';
-            } else {
-                const procedureName = document.getElementById('procedure-name').value;
-                message = `Please provide procedure guidelines and checklist for ${procedureName}.`;
-            }
-        } else {
-            message = userInput.value.trim();
-            if (!message) return;
+        if (!validateForm()) {
+            addMessage('assistant', 'Please fill in all required fields before submitting.');
+            return;
         }
+
+        const buttonText = submitButton.querySelector('.button-text');
+        
+        // Generate initial query based on consultation type
+        const consultationType = document.querySelector('input[name="consultation-type"]:checked').value;
+        const message = consultationType === 'diagnosis' 
+            ? 'Please provide diagnosis recommendations based on the provided information.'
+            : `Please provide procedure guidelines and checklist for ${document.getElementById('procedure-name').value}.`;
 
         // Collect patient information
         const patientInfo = {
-            consultationType: document.querySelector('input[name="consultation-type"]:checked').value,
+            consultationType: consultationType,
             procedureName: document.getElementById('procedure-name').value,
             age: document.getElementById('patient-age').value,
             gender: document.getElementById('patient-gender').value,
@@ -93,9 +79,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Add user message to chat
         addMessage('user', message);
-        if (!isInitialQuery) {
-            userInput.value = '';
-        }
 
         // Show loading state
         const spinner = submitButton.querySelector('.spinner-border');
@@ -115,7 +98,6 @@ document.addEventListener('DOMContentLoaded', function() {
             const data = await response.json();
             
             if (data.show_payment) {
-                // Show payment container
                 document.getElementById('payment-container').style.display = 'block';
                 return;
             }
@@ -123,7 +105,6 @@ document.addEventListener('DOMContentLoaded', function() {
             // Add assistant response to chat and update history
             addMessage('assistant', data.response);
             
-            // Show remaining queries if in trial
             if (data.queries_remaining !== null) {
                 addMessage('system', `You have ${data.queries_remaining} out of 10 free queries remaining.`);
             }
@@ -131,13 +112,10 @@ document.addEventListener('DOMContentLoaded', function() {
             chatHistory.push({ role: 'user', content: message });
             chatHistory.push({ role: 'assistant', content: data.response });
 
-            // Show input field after first response
-            if (isInitialQuery) {
-                userInput.style.display = 'block';
-                followUpButton.style.display = 'block';
-                submitButton.style.display = 'none';
-                buttonText.textContent = 'Send';
-            }
+            // Show follow-up input field
+            userInput.style.display = 'block';
+            followUpButton.style.display = 'block';
+            submitButton.style.display = 'none';
             
         } catch (error) {
             console.error('Error:', error);
@@ -145,9 +123,7 @@ document.addEventListener('DOMContentLoaded', function() {
         } finally {
             submitButton.disabled = false;
             spinner.classList.add('d-none');
-            if (isInitialQuery) {
-                buttonText.textContent = 'Send';
-            }
+            buttonText.textContent = 'Get Recommendations';
         }
     });
 
