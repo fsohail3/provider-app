@@ -97,31 +97,39 @@ def home():
 @app.route('/chat', methods=['POST'])
 def chat():
     try:
+        app.logger.info('Chat endpoint called')
+        app.logger.info(f'Headers: {dict(request.headers)}')
+        
         # Get or create user session ID
         user_id = session.get('user_id')
+        app.logger.info(f'User ID from session: {user_id}')
+        
         if not user_id:
             user_id = os.urandom(16).hex()
             session['user_id'] = user_id
+            app.logger.info(f'Created new user ID: {user_id}')
+
+        # Log request data
+        data = request.json
+        app.logger.info(f'Request data: {json.dumps(data, indent=2)}')
 
         # Check subscription status
         user = User.query.get(user_id)
         if not user:
+            app.logger.info(f'Creating new user with ID: {user_id}')
             user = User(id=user_id, subscription_status='trial', query_count=0)
             db.session.add(user)
             db.session.commit()
 
         if user.subscription_status != 'active' and user.query_count >= 10:
+            app.logger.info(f'Trial limit reached for user: {user_id}')
             return jsonify({
                 "response": "Trial limit reached",
                 "show_payment": True
             })
 
-        # Get request data
-        data = request.json
-        consultation_type = data.get('consultationType')
-        
         # Create messages array
-        messages = [{"role": "system", "content": create_system_prompt(consultation_type)}]
+        messages = [{"role": "system", "content": create_system_prompt(data.get('consultationType'))}]
         
         chat_history = data.get('chatHistory', [])
         if chat_history:
@@ -132,6 +140,7 @@ def chat():
             "content": create_patient_context(data)
         })
 
+        app.logger.info('Making OpenAI API call')
         # Make OpenAI API call
         completion = client.chat.completions.create(
             model=MODEL_NAME,
@@ -139,20 +148,24 @@ def chat():
             temperature=0.7
         )
         
+        app.logger.info('OpenAI API call successful')
+        
         # Update query count for trial users
         if user.subscription_status == 'trial':
             user.query_count += 1
             db.session.commit()
+            app.logger.info(f'Updated query count for user {user_id}: {user.query_count}')
 
         response_data = {
             "response": completion.choices[0].message.content,
             "queries_remaining": 10 - user.query_count if user.subscription_status == 'trial' else None
         }
         
+        app.logger.info('Sending response back to client')
         return jsonify(response_data)
 
     except Exception as e:
-        print(f"Error in chat route: {str(e)}")
+        app.logger.error(f"Error in chat route: {str(e)}", exc_info=True)
         return jsonify({
             "response": "I apologize, but I encountered an error. Please try again."
         }), 500

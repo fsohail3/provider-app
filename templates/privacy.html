@@ -91,27 +91,41 @@
                 button.disabled = true;
                 button.innerHTML = 'Processing...';
                 console.log('Submitting consent...');
+                console.log('Current URL:', window.location.href);
+                console.log('Session storage:', sessionStorage);
+                console.log('Local storage:', localStorage);
 
                 try {
+                    console.log('Sending POST request to /accept-consent');
                     const response = await fetch('/accept-consent', {
                         method: 'POST',
-                        credentials: 'same-origin'
+                        credentials: 'same-origin',
+                        headers: {
+                            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8'
+                        }
                     });
                     
-                    console.log('Response received:', response.status);
-                    console.log('Response type:', response.type);
-                    console.log('Is redirected:', response.redirected);
-                    console.log('Response URL:', response.url);
+                    console.log('Response details:', {
+                        status: response.status,
+                        statusText: response.statusText,
+                        type: response.type,
+                        redirected: response.redirected,
+                        url: response.url,
+                        headers: Object.fromEntries(response.headers.entries())
+                    });
                     
                     if (response.redirected) {
                         console.log('Following redirect to:', response.url);
                         window.location.href = response.url;
                     } else {
-                        console.log('No redirect received, response:', await response.text());
-                        throw new Error('Failed to process consent');
+                        console.log('Response body:', await response.text());
+                        throw new Error('Failed to process consent - no redirect received');
                     }
                 } catch (error) {
-                    console.error('Error:', error);
+                    console.error('Error details:', {
+                        message: error.message,
+                        stack: error.stack
+                    });
                     button.disabled = false;
                     button.innerHTML = 'Accept & Continue';
                     alert('Error processing consent: ' + error.message + '. Please try again or contact support if the issue persists.');
