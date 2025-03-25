@@ -235,116 +235,193 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    function addMessage(sender, text) {
-        const messageDiv = document.createElement('div');
-        messageDiv.className = `message ${sender}-message`;
-        
-        // Parse markdown-like formatting for checklists and risks
-        const formattedText = formatMessage(text);
-        messageDiv.innerHTML = formattedText;
-        
-        messagesArea.appendChild(messageDiv);
-        // Only scroll to bottom for user follow-up messages
-        if (sender === 'user' && userInput.style.display !== 'none') {
-            messagesArea.scrollTop = messagesArea.scrollHeight;
-        } else {
-            // Keep scrolled to top for initial query and all assistant responses
-            messagesArea.scrollTop = 0;
-        }
-    }
-
     function formatMessage(text) {
-        // Convert markdown-style formatting to HTML
-        return text
-            // Headers
-            .replace(/### (.*?)\n/g, '<h3>$1</h3>')
-            .replace(/#### (.*?)\n/g, '<h4>$1</h4>')
-            
-            // Bold text
-            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-            
-            // Lists
-            .replace(/^\d+\. (.*)/gm, '<div class="numbered-item">$1</div>')
-            .replace(/^- (.*)/gm, '<div class="bullet-item">• $1</div>')
-            
-            // Checkboxes
-            .replace(/□ (.*)/g, '<div class="checklist-item"><input type="checkbox" class="form-check-input me-2"><span>$1</span></div>')
-            
-            // Special formatting
-            .replace(/!RISK: (.*)/g, '<div class="risk-alert">⚠️ $1</div>')
-            .replace(/\[PROTOCOL: (.*?)\]/g, '<div class="protocol-reference">📋 Protocol: $1</div>')
-            
-            // Line breaks
-            .replace(/\n\n/g, '<br><br>')
-            .replace(/\n/g, '<br>');
+        // First, split the text into sections
+        const sections = text.split('\n\n');
+        
+        return sections.map(section => {
+            // Process each section
+            return section
+                // Headers (must be at start of line)
+                .replace(/^### (.*?)$/gm, '<h3>$1</h3>')
+                .replace(/^#### (.*?)$/gm, '<h4>$1</h4>')
+                
+                // Bold text
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                
+                // Lists (must be at start of line)
+                .replace(/^(\d+)\. (.*?)$/gm, '<div class="numbered-item"><span class="number">$1.</span> $2</div>')
+                .replace(/^- (.*?)$/gm, '<div class="bullet-item">• $1</div>')
+                
+                // Checkboxes (must be at start of line)
+                .replace(/^□ (.*?)$/gm, '<div class="checklist-item"><input type="checkbox" class="form-check-input me-2"><span>$1</span></div>')
+                
+                // Special formatting
+                .replace(/^!RISK: (.*?)$/gm, '<div class="risk-alert">⚠️ $1</div>')
+                .replace(/^\[PROTOCOL: (.*?)\]$/gm, '<div class="protocol-reference">📋 Protocol: $1</div>')
+                
+                // Replace remaining newlines with <br>
+                .replace(/\n/g, '<br>');
+        }).join('<br><br>');
     }
 
-    // Add CSS styles for new elements
+    // Update the style with better formatting
     const style = document.createElement('style');
     style.textContent = `
+        .message {
+            margin-bottom: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .assistant-message {
+            background-color: #f8f9fa;
+            border-left: 4px solid #0d6efd;
+        }
+
+        .user-message {
+            background-color: #e3f2fd;
+            border-left: 4px solid #0d6efd;
+            text-align: right;
+        }
+
         .numbered-item, .bullet-item {
             margin: 8px 0;
-            padding: 4px 0;
+            padding: 8px;
+            background-color: #ffffff;
+            border-radius: 4px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+
+        .numbered-item .number {
+            font-weight: bold;
+            color: #0d6efd;
+            margin-right: 8px;
         }
         
         .checklist-item {
             display: flex;
             align-items: flex-start;
             margin: 8px 0;
-            padding: 8px;
-            background-color: #f8f9fa;
+            padding: 12px;
+            background-color: #ffffff;
             border-radius: 4px;
-            transition: background-color 0.2s;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            transition: all 0.2s ease;
         }
         
         .checklist-item:hover {
-            background-color: #e9ecef;
+            background-color: #f8f9fa;
+            transform: translateX(2px);
         }
         
         .checklist-item.completed {
             background-color: #e8f5e9;
-            color: #666;
+            color: #2e7d32;
         }
         
         .checklist-item.completed span {
             text-decoration: line-through;
+        }
+
+        .checklist-item input[type="checkbox"] {
+            margin-top: 3px;
+            margin-right: 12px;
         }
         
         .risk-alert {
             background-color: #fff3cd;
             border: 1px solid #ffeeba;
             color: #856404;
-            padding: 12px;
+            padding: 15px;
             margin: 12px 0;
             border-radius: 5px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
         }
         
         .protocol-reference {
             background-color: #e9ecef;
-            padding: 12px;
+            padding: 15px;
             margin: 12px 0;
             border-radius: 5px;
             font-size: 0.9em;
             color: #495057;
-        }
-        
-        h3, h4 {
-            margin: 16px 0 12px 0;
-            color: #2c3e50;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
         }
         
         h3 {
             font-size: 1.5em;
+            color: #2c3e50;
             border-bottom: 2px solid #eee;
             padding-bottom: 8px;
+            margin: 20px 0 15px 0;
         }
         
         h4 {
             font-size: 1.2em;
             color: #34495e;
+            margin: 15px 0 10px 0;
+        }
+
+        .loading-indicator {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            color: #666;
+        }
+
+        .loading-indicator .spinner {
+            margin-right: 10px;
         }
     `;
     document.head.appendChild(style);
+
+    // Add checkbox functionality
+    document.addEventListener('click', function(e) {
+        if (e.target && e.target.type === 'checkbox' && e.target.closest('.checklist-item')) {
+            const item = e.target.closest('.checklist-item');
+            if (e.target.checked) {
+                item.classList.add('completed');
+            } else {
+                item.classList.remove('completed');
+            }
+        }
+    });
+
+    // Update addMessage to show loading state
+    function addMessage(sender, text) {
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `message ${sender}-message`;
+        
+        if (sender === 'assistant') {
+            // Show loading indicator first
+            messageDiv.innerHTML = `
+                <div class="loading-indicator">
+                    <div class="spinner-border spinner-border-sm" role="status"></div>
+                    <span>Processing response...</span>
+                </div>
+            `;
+            messagesArea.appendChild(messageDiv);
+            
+            // Process the message after a short delay
+            setTimeout(() => {
+                const formattedText = formatMessage(text);
+                messageDiv.innerHTML = formattedText;
+            }, 100);
+        } else {
+            messageDiv.innerHTML = text;
+        }
+        
+        messagesArea.appendChild(messageDiv);
+        
+        if (sender === 'user' && userInput.style.display !== 'none') {
+            messagesArea.scrollTop = messagesArea.scrollHeight;
+        } else {
+            messagesArea.scrollTop = 0;
+        }
+    }
 
     // Add form validation before submission
     function validateForm() {
