@@ -70,6 +70,13 @@ class ConsentTracking(db.Model):
     consent_date = db.Column(db.DateTime, default=datetime.utcnow)
     ip_address = db.Column(db.String(50))
 
+class User(db.Model):
+    id = db.Column(db.String(32), primary_key=True)
+    subscription_status = db.Column(db.String(20), default='trial')  # 'trial' or 'active'
+    query_count = db.Column(db.Integer, default=0)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    last_query = db.Column(db.DateTime)
+
 # Update consent check
 @app.before_request
 def check_consent():
