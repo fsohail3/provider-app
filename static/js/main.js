@@ -1,5 +1,207 @@
-// Expose handleSubmission to window scope
-window.handleSubmission = null;
+// Initialize global namespace
+window.HealthcareApp = {
+    handleSubmission: null,
+    isLoading: false,
+    chatHistory: []
+};
+
+// Utility functions exposed to global scope
+window.HealthcareApp.addMessage = function(sender, text) {
+    console.log('Adding message from:', sender);
+    const messagesArea = document.getElementById('chat-messages');
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `message ${sender}-message`;
+    messageDiv.innerHTML = text;
+    messagesArea.appendChild(messageDiv);
+    messagesArea.scrollTop = messagesArea.scrollHeight;
+};
+
+window.HealthcareApp.addFormattedMessage = function(sender, text) {
+    console.log('Adding formatted message from:', sender);
+    const messagesArea = document.getElementById('chat-messages');
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `message ${sender}-message`;
+    messageDiv.innerHTML = text;
+    messagesArea.appendChild(messageDiv);
+    
+    if (sender === 'user') {
+        messagesArea.scrollTop = messagesArea.scrollHeight;
+    } else {
+        messagesArea.scrollTop = 0;
+    }
+};
+
+window.HealthcareApp.showLoadingState = function() {
+    console.log('Showing loading state');
+    const submitButton = document.getElementById('submit-button');
+    submitButton.disabled = true;
+    const spinner = submitButton.querySelector('.spinner-border');
+    const buttonText = submitButton.querySelector('.button-text');
+    spinner.classList.remove('d-none');
+    buttonText.textContent = 'Processing...';
+};
+
+window.HealthcareApp.hideLoadingState = function() {
+    console.log('Hiding loading state');
+    const submitButton = document.getElementById('submit-button');
+    submitButton.disabled = false;
+    const spinner = submitButton.querySelector('.spinner-border');
+    const buttonText = submitButton.querySelector('.button-text');
+    spinner.classList.add('d-none');
+    buttonText.textContent = 'Get Recommendations';
+};
+
+window.HealthcareApp.addLoadingMessage = function() {
+    console.log('Adding loading message');
+    const messagesArea = document.getElementById('chat-messages');
+    const loadingDiv = document.createElement('div');
+    loadingDiv.className = 'message assistant-message loading-message';
+    loadingDiv.innerHTML = `
+        <div class="loading-state">
+            <div class="loading-animation">
+                <div class="typing-indicator">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </div>
+            </div>
+            <div class="loading-text">
+                <h4>Analyzing procedure requirements...</h4>
+                <p>This typically takes 15-20 seconds. I'm preparing detailed, evidence-based recommendations.</p>
+            </div>
+        </div>
+    `;
+    messagesArea.appendChild(loadingDiv);
+    messagesArea.scrollTop = messagesArea.scrollHeight;
+    return loadingDiv;
+};
+
+window.HealthcareApp.validateForm = function() {
+    const consultationType = document.querySelector('input[name="consultation-type"]:checked').value;
+    console.log('Validating form for type:', consultationType);
+
+    if (consultationType === 'procedure') {
+        const procedureName = document.getElementById('procedure-name');
+        console.log('Procedure name value:', procedureName ? procedureName.value : 'field not found');
+        
+        if (!procedureName || !procedureName.value.trim()) {
+            if (procedureName) {
+                procedureName.classList.add('is-invalid');
+                procedureName.focus();
+            }
+            console.log('Validation failed: Procedure name required');
+            return false;
+        }
+        
+        console.log('Validation passed: Procedure name provided');
+        return true;
+    }
+
+    return true;
+};
+
+// Main submission handler
+window.HealthcareApp.handleSubmission = async function() {
+    console.log('handleSubmission called');
+    if (window.HealthcareApp.isLoading) {
+        console.log('Already loading, returning');
+        return;
+    }
+    
+    window.HealthcareApp.isLoading = true;
+    window.HealthcareApp.showLoadingState();
+    
+    console.log('Starting form submission');
+    const loadingMessage = window.HealthcareApp.addLoadingMessage();
+    
+    try {
+        const consultationType = document.querySelector('input[name="consultation-type"]:checked').value;
+        console.log('Consultation type:', consultationType);
+        
+        const procedureName = document.getElementById('procedure-name').value;
+        console.log('Procedure name:', procedureName);
+        
+        const message = consultationType === 'diagnosis' 
+            ? 'Please provide diagnosis recommendations based on the provided information.'
+            : `Please provide procedure guidelines and checklist for ${procedureName}.`;
+
+        const patientInfo = {
+            consultationType: consultationType,
+            procedureName: procedureName
+        };
+
+        const optionalFields = {
+            'age': 'patient-age',
+            'gender': 'patient-gender',
+            'chiefComplaint': 'chief-complaint',
+            'bp': 'bp',
+            'heartRate': 'heart-rate',
+            'temperature': 'temperature',
+            'spo2': 'spo2',
+            'allergies': 'allergies',
+            'medicalHistory': 'medical-history',
+            'testResults': 'test-results',
+            'medications': 'medications'
+        };
+
+        for (const [key, id] of Object.entries(optionalFields)) {
+            const field = document.getElementById(id);
+            if (field && field.value) {
+                patientInfo[key] = field.value;
+            }
+        }
+
+        patientInfo.query = message;
+        patientInfo.chatHistory = window.HealthcareApp.chatHistory;
+
+        console.log('Submitting request with data:', patientInfo);
+        window.HealthcareApp.addMessage('user', message);
+
+        console.log('Sending fetch request to /chat');
+        const response = await fetch('/chat', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(patientInfo)
+        });
+
+        console.log('Response received:', response.status);
+        const data = await response.json();
+        console.log('Response data received:', data);
+        
+        if (data.show_payment) {
+            document.getElementById('payment-container').style.display = 'block';
+            return;
+        }
+
+        loadingMessage.remove();
+        window.HealthcareApp.addFormattedMessage('assistant', data.response);
+        
+        if (data.queries_remaining !== null) {
+            window.HealthcareApp.addMessage('system', `You have ${data.queries_remaining} out of 10 free queries remaining.`);
+        }
+        
+        window.HealthcareApp.chatHistory.push({ role: 'user', content: message });
+        window.HealthcareApp.chatHistory.push({ role: 'assistant', content: data.response });
+
+        const userInput = document.getElementById('user-input');
+        const followUpButton = document.getElementById('follow-up-button');
+        const submitButton = document.getElementById('submit-button');
+        
+        userInput.style.display = 'block';
+        followUpButton.style.display = 'block';
+        submitButton.style.display = 'none';
+        
+    } catch (error) {
+        console.error('Error during submission:', error);
+        loadingMessage.remove();
+        window.HealthcareApp.addFormattedMessage('assistant', 'Sorry, there was an error processing your request. Please try again.');
+    } finally {
+        window.HealthcareApp.hideLoadingState();
+        window.HealthcareApp.isLoading = false;
+    }
+};
 
 document.addEventListener('DOMContentLoaded', function() {
     console.log('DOM Content Loaded - Setting up event handlers');
@@ -56,12 +258,12 @@ document.addEventListener('DOMContentLoaded', function() {
             console.log('Submit button clicked (main.js handler)');
             e.preventDefault();
             
-            if (validateForm()) {
+            if (window.HealthcareApp.validateForm()) {
                 console.log('Form validation passed, calling handleSubmission');
-                handleSubmission();
+                window.HealthcareApp.handleSubmission();
             } else {
                 console.log('Form validation failed');
-                addMessage('assistant', 'Please fill in the required fields before submitting.');
+                window.HealthcareApp.addMessage('assistant', 'Please fill in the required fields before submitting.');
             }
         });
     } else {
@@ -80,9 +282,6 @@ document.addEventListener('DOMContentLoaded', function() {
             procedureSection.style.display = 'block';
         });
     }
-
-    // Add a global loading state
-    let isLoading = false;
 
     // Handle form submission logic
     async function handleSubmission() {
@@ -195,7 +394,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Expose handleSubmission to window scope
-    window.handleSubmission = handleSubmission;
+    window.HealthcareApp.handleSubmission = handleSubmission;
 
     function showLoadingState() {
         console.log('Showing loading state');
@@ -344,4 +543,11 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     console.log('All event handlers set up');
+});
+
+// Verify initialization
+console.log('Main.js loaded, HealthcareApp initialized:', {
+    handleSubmission: !!window.HealthcareApp.handleSubmission,
+    addMessage: !!window.HealthcareApp.addMessage,
+    validateForm: !!window.HealthcareApp.validateForm
 }); 

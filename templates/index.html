@@ -190,10 +190,11 @@
                 submitButton.onclick = function(e) {
                     console.log('Backup click handler triggered');
                     e.preventDefault();
-                    if (window.handleSubmission) {
-                        window.handleSubmission();
+                    if (window.HealthcareApp && window.HealthcareApp.handleSubmission) {
+                        console.log('Using HealthcareApp.handleSubmission');
+                        window.HealthcareApp.handleSubmission();
                     } else {
-                        console.error('handleSubmission function not found');
+                        console.error('HealthcareApp or handleSubmission not found');
                     }
                 };
             } else {
