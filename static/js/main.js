@@ -5,13 +5,47 @@ window.HealthcareApp = {
     chatHistory: []
 };
 
+// Markdown to HTML converter
+window.HealthcareApp.convertMarkdownToHtml = function(markdown) {
+    if (!markdown) return '';
+    
+    return markdown
+        // Headers
+        .replace(/### (.*?)\n/g, '<h3>$1</h3>')
+        .replace(/## (.*?)\n/g, '<h2>$1</h2>')
+        .replace(/# (.*?)\n/g, '<h1>$1</h1>')
+        
+        // Lists
+        .replace(/^\s*\d+\.\s+(.+)/gm, '<li>$1</li>')
+        .replace(/^\s*[\-\*]\s+(.+)/gm, '<li>$1</li>')
+        .replace(/(<li>.*<\/li>)\n/g, '<ul>$1</ul>')
+        
+        // Checkboxes
+        .replace(/□\s+(.+)/g, '<div class="checklist-item"><input type="checkbox"> <span>$1</span></div>')
+        
+        // Risk alerts
+        .replace(/!RISK:\s+(.+)/g, '<div class="risk-alert"><strong>⚠️ RISK:</strong> $1</div>')
+        
+        // Protocol references
+        .replace(/\[PROTOCOL:\s+(.+?)\]/g, '<div class="protocol-reference"><strong>📋 Protocol:</strong> $1</div>')
+        
+        // Bold
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        
+        // Italics
+        .replace(/\*(.*?)\*/g, '<em>$1</em>')
+        
+        // Line breaks
+        .replace(/\n/g, '<br>');
+};
+
 // Utility functions exposed to global scope
 window.HealthcareApp.addMessage = function(sender, text) {
     console.log('Adding message from:', sender);
     const messagesArea = document.getElementById('chat-messages');
     const messageDiv = document.createElement('div');
     messageDiv.className = `message ${sender}-message`;
-    messageDiv.innerHTML = text;
+    messageDiv.innerHTML = sender === 'assistant' ? window.HealthcareApp.convertMarkdownToHtml(text) : text;
     messagesArea.appendChild(messageDiv);
     messagesArea.scrollTop = messagesArea.scrollHeight;
 };
@@ -21,7 +55,7 @@ window.HealthcareApp.addFormattedMessage = function(sender, text) {
     const messagesArea = document.getElementById('chat-messages');
     const messageDiv = document.createElement('div');
     messageDiv.className = `message ${sender}-message`;
-    messageDiv.innerHTML = text;
+    messageDiv.innerHTML = sender === 'assistant' ? window.HealthcareApp.convertMarkdownToHtml(text) : text;
     messagesArea.appendChild(messageDiv);
     
     if (sender === 'user') {
