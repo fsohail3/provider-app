@@ -181,57 +181,6 @@
             console.error('Error loading main.js:', error);
         };
         document.body.appendChild(script);
-
-        // Add click handler directly
-        document.addEventListener('DOMContentLoaded', function() {
-            console.log('Setting up click handler');
-            const submitButton = document.getElementById('submit-button');
-            if (submitButton) {
-                console.log('Submit button found');
-                submitButton.onclick = function(e) {
-                    console.log('Submit button clicked (inline handler)');
-                    e.preventDefault();
-                    const procedureName = document.getElementById('procedure-name');
-                    if (procedureName && procedureName.value.trim()) {
-                        console.log('Submitting with procedure:', procedureName.value);
-                        fetch('/chat', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                            },
-                            body: JSON.stringify({
-                                consultationType: 'procedure',
-                                procedureName: procedureName.value,
-                                query: `Please provide procedure guidelines and checklist for ${procedureName.value}.`
-                            })
-                        })
-                        .then(response => {
-                            console.log('Response received:', response.status);
-                            return response.json();
-                        })
-                        .then(data => {
-                            console.log('Data received:', data);
-                            const messagesArea = document.getElementById('chat-messages');
-                            if (messagesArea) {
-                                const messageDiv = document.createElement('div');
-                                messageDiv.className = 'message assistant-message';
-                                messageDiv.innerHTML = data.response;
-                                messagesArea.appendChild(messageDiv);
-                            }
-                        })
-                        .catch(error => {
-                            console.error('Error:', error);
-                            alert('Error submitting request. Please try again.');
-                        });
-                    } else {
-                        console.log('Procedure name required');
-                        alert('Please enter a procedure name');
-                    }
-                };
-            } else {
-                console.error('Submit button not found in DOM');
-            }
-        });
     </script>
 </body>
 </html> 
