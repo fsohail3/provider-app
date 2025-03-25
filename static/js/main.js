@@ -79,65 +79,71 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    // Add a global loading state
+    let isLoading = false;
+
     // Handle form submission logic
     async function handleSubmission() {
+        if (isLoading) return;
+        
+        isLoading = true;
+        showLoadingState();
+        
         console.log('Starting form submission');
         const buttonText = submitButton.querySelector('.button-text');
         const spinner = submitButton.querySelector('.spinner-border');
         
-        // Generate initial query based on consultation type
-        const consultationType = document.querySelector('input[name="consultation-type"]:checked').value;
-        console.log('Consultation type:', consultationType);
+        // Show initial loading message in chat
+        const loadingMessage = addLoadingMessage();
         
-        const procedureName = document.getElementById('procedure-name').value;
-        console.log('Procedure name:', procedureName);
-        
-        const message = consultationType === 'diagnosis' 
-            ? 'Please provide diagnosis recommendations based on the provided information.'
-            : `Please provide procedure guidelines and checklist for ${procedureName}.`;
-
-        // Collect patient information
-        const patientInfo = {
-            consultationType: consultationType,
-            procedureName: procedureName
-        };
-
-        // Only add other fields if they have values
-        const optionalFields = {
-            'age': 'patient-age',
-            'gender': 'patient-gender',
-            'chiefComplaint': 'chief-complaint',
-            'bp': 'bp',
-            'heartRate': 'heart-rate',
-            'temperature': 'temperature',
-            'spo2': 'spo2',
-            'allergies': 'allergies',
-            'medicalHistory': 'medical-history',
-            'testResults': 'test-results',
-            'medications': 'medications'
-        };
-
-        for (const [key, id] of Object.entries(optionalFields)) {
-            const field = document.getElementById(id);
-            if (field && field.value) {
-                patientInfo[key] = field.value;
-            }
-        }
-
-        patientInfo.query = message;
-        patientInfo.chatHistory = chatHistory;
-
-        console.log('Submitting request with data:', patientInfo);
-
-        // Add user message to chat
-        addMessage('user', message);
-
-        // Show loading state
-        submitButton.disabled = true;
-        spinner.classList.remove('d-none');
-        buttonText.textContent = 'Processing...';
-
         try {
+            // Generate initial query based on consultation type
+            const consultationType = document.querySelector('input[name="consultation-type"]:checked').value;
+            console.log('Consultation type:', consultationType);
+            
+            const procedureName = document.getElementById('procedure-name').value;
+            console.log('Procedure name:', procedureName);
+            
+            const message = consultationType === 'diagnosis' 
+                ? 'Please provide diagnosis recommendations based on the provided information.'
+                : `Please provide procedure guidelines and checklist for ${procedureName}.`;
+
+            // Collect patient information
+            const patientInfo = {
+                consultationType: consultationType,
+                procedureName: procedureName
+            };
+
+            // Only add other fields if they have values
+            const optionalFields = {
+                'age': 'patient-age',
+                'gender': 'patient-gender',
+                'chiefComplaint': 'chief-complaint',
+                'bp': 'bp',
+                'heartRate': 'heart-rate',
+                'temperature': 'temperature',
+                'spo2': 'spo2',
+                'allergies': 'allergies',
+                'medicalHistory': 'medical-history',
+                'testResults': 'test-results',
+                'medications': 'medications'
+            };
+
+            for (const [key, id] of Object.entries(optionalFields)) {
+                const field = document.getElementById(id);
+                if (field && field.value) {
+                    patientInfo[key] = field.value;
+                }
+            }
+
+            patientInfo.query = message;
+            patientInfo.chatHistory = chatHistory;
+
+            console.log('Submitting request with data:', patientInfo);
+
+            // Add user message to chat
+            addMessage('user', message);
+
             console.log('Sending fetch request to /chat');
             const response = await fetch('/chat', {
                 method: 'POST',
@@ -156,8 +162,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
 
-            // Add assistant response to chat and update history
-            addMessage('assistant', data.response);
+            // Remove loading message and add real response
+            loadingMessage.remove();
+            addFormattedMessage('assistant', data.response);
             
             if (data.queries_remaining !== null) {
                 addMessage('system', `You have ${data.queries_remaining} out of 10 free queries remaining.`);
@@ -173,11 +180,63 @@ document.addEventListener('DOMContentLoaded', function() {
             
         } catch (error) {
             console.error('Error during submission:', error);
-            addMessage('assistant', 'Sorry, there was an error processing your request. Please try again.');
+            loadingMessage.remove();
+            addFormattedMessage('assistant', 'Sorry, there was an error processing your request. Please try again.');
         } finally {
-            submitButton.disabled = false;
-            spinner.classList.add('d-none');
-            buttonText.textContent = 'Get Recommendations';
+            hideLoadingState();
+            isLoading = false;
+        }
+    }
+
+    function showLoadingState() {
+        submitButton.disabled = true;
+        const spinner = submitButton.querySelector('.spinner-border');
+        const buttonText = submitButton.querySelector('.button-text');
+        spinner.classList.remove('d-none');
+        buttonText.textContent = 'Processing...';
+    }
+
+    function hideLoadingState() {
+        submitButton.disabled = false;
+        const spinner = submitButton.querySelector('.spinner-border');
+        const buttonText = submitButton.querySelector('.button-text');
+        spinner.classList.add('d-none');
+        buttonText.textContent = 'Get Recommendations';
+    }
+
+    function addLoadingMessage() {
+        const loadingDiv = document.createElement('div');
+        loadingDiv.className = 'message assistant-message loading-message';
+        loadingDiv.innerHTML = `
+            <div class="loading-state">
+                <div class="loading-animation">
+                    <div class="typing-indicator">
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                    </div>
+                </div>
+                <div class="loading-text">
+                    <h4>Analyzing procedure requirements...</h4>
+                    <p>This typically takes 15-20 seconds. I'm preparing detailed, evidence-based recommendations.</p>
+                </div>
+            </div>
+        `;
+        messagesArea.appendChild(loadingDiv);
+        messagesArea.scrollTop = messagesArea.scrollHeight;
+        return loadingDiv;
+    }
+
+    function addFormattedMessage(sender, text) {
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `message ${sender}-message`;
+        messageDiv.innerHTML = formatMessage(text);
+        messagesArea.appendChild(messageDiv);
+        
+        if (sender === 'user') {
+            messagesArea.scrollTop = messagesArea.scrollHeight;
+        } else {
+            messagesArea.scrollTop = 0;
         }
     }
 
@@ -374,6 +433,57 @@ document.addEventListener('DOMContentLoaded', function() {
 
         .loading-indicator .spinner {
             margin-right: 10px;
+        }
+
+        .loading-state {
+            display: flex;
+            align-items: flex-start;
+            gap: 20px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .loading-animation {
+            flex-shrink: 0;
+        }
+
+        .loading-text {
+            flex-grow: 1;
+        }
+
+        .loading-text h4 {
+            margin: 0 0 10px 0;
+            color: #2c3e50;
+        }
+
+        .loading-text p {
+            margin: 0;
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        .typing-indicator {
+            display: flex;
+            gap: 4px;
+        }
+
+        .typing-indicator span {
+            width: 8px;
+            height: 8px;
+            background: #0d6efd;
+            border-radius: 50%;
+            animation: typing 1.4s infinite ease-in-out;
+        }
+
+        .typing-indicator span:nth-child(1) { animation-delay: 0s; }
+        .typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
+        .typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
+
+        @keyframes typing {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
         }
     `;
     document.head.appendChild(style);
