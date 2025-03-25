@@ -1,3 +1,6 @@
+// Expose handleSubmission to window scope
+window.handleSubmission = null;
+
 document.addEventListener('DOMContentLoaded', function() {
     console.log('DOM Content Loaded - Setting up event handlers');
     
@@ -190,6 +193,9 @@ document.addEventListener('DOMContentLoaded', function() {
             isLoading = false;
         }
     }
+
+    // Expose handleSubmission to window scope
+    window.handleSubmission = handleSubmission;
 
     function showLoadingState() {
         console.log('Showing loading state');
