@@ -254,14 +254,97 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function formatMessage(text) {
-        // Convert markdown-style formatting to HTML with interactive checkboxes for procedures
+        // Convert markdown-style formatting to HTML
         return text
+            // Headers
+            .replace(/### (.*?)\n/g, '<h3>$1</h3>')
+            .replace(/#### (.*?)\n/g, '<h4>$1</h4>')
+            
+            // Bold text
             .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-            .replace(/□ (.*)/g, '<div class="checklist-item"><input type="checkbox" class="form-check-input me-2"> $1</div>')  // Interactive checkboxes
+            
+            // Lists
+            .replace(/^\d+\. (.*)/gm, '<div class="numbered-item">$1</div>')
+            .replace(/^- (.*)/gm, '<div class="bullet-item">• $1</div>')
+            
+            // Checkboxes
+            .replace(/□ (.*)/g, '<div class="checklist-item"><input type="checkbox" class="form-check-input me-2"><span>$1</span></div>')
+            
+            // Special formatting
             .replace(/!RISK: (.*)/g, '<div class="risk-alert">⚠️ $1</div>')
             .replace(/\[PROTOCOL: (.*?)\]/g, '<div class="protocol-reference">📋 Protocol: $1</div>')
+            
+            // Line breaks
+            .replace(/\n\n/g, '<br><br>')
             .replace(/\n/g, '<br>');
     }
+
+    // Add CSS styles for new elements
+    const style = document.createElement('style');
+    style.textContent = `
+        .numbered-item, .bullet-item {
+            margin: 8px 0;
+            padding: 4px 0;
+        }
+        
+        .checklist-item {
+            display: flex;
+            align-items: flex-start;
+            margin: 8px 0;
+            padding: 8px;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+            transition: background-color 0.2s;
+        }
+        
+        .checklist-item:hover {
+            background-color: #e9ecef;
+        }
+        
+        .checklist-item.completed {
+            background-color: #e8f5e9;
+            color: #666;
+        }
+        
+        .checklist-item.completed span {
+            text-decoration: line-through;
+        }
+        
+        .risk-alert {
+            background-color: #fff3cd;
+            border: 1px solid #ffeeba;
+            color: #856404;
+            padding: 12px;
+            margin: 12px 0;
+            border-radius: 5px;
+        }
+        
+        .protocol-reference {
+            background-color: #e9ecef;
+            padding: 12px;
+            margin: 12px 0;
+            border-radius: 5px;
+            font-size: 0.9em;
+            color: #495057;
+        }
+        
+        h3, h4 {
+            margin: 16px 0 12px 0;
+            color: #2c3e50;
+        }
+        
+        h3 {
+            font-size: 1.5em;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 8px;
+        }
+        
+        h4 {
+            font-size: 1.2em;
+            color: #34495e;
+        }
+    `;
+    document.head.appendChild(style);
 
     // Add form validation before submission
     function validateForm() {
