@@ -1,4 +1,6 @@
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOM Content Loaded - Setting up event handlers');
+    
     const chatForm = document.getElementById('chat-form');
     const patientForm = document.getElementById('patient-form');
     const userInput = document.getElementById('user-input');
@@ -10,12 +12,12 @@ document.addEventListener('DOMContentLoaded', function() {
     const followUpButton = document.getElementById('follow-up-button');
     const consultationTypes = document.getElementsByName('consultation-type');
 
-    console.log('DOM Content Loaded');
     console.log('Elements found:', {
         chatForm: !!chatForm,
         patientForm: !!patientForm,
         procedureSection: !!procedureSection,
-        submitButton: !!submitButton
+        submitButton: !!submitButton,
+        messagesArea: !!messagesArea
     });
 
     // Chat history
@@ -25,11 +27,13 @@ document.addEventListener('DOMContentLoaded', function() {
     const procedureRadio = document.getElementById('procedure');
     if (procedureRadio) {
         procedureRadio.checked = true;
+        console.log('Set procedure as default');
     }
 
     // Show procedure section by default (with null check)
     if (procedureSection) {
         procedureSection.style.display = 'block';
+        console.log('Showed procedure section');
     }
 
     // Handle consultation type change
@@ -44,15 +48,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Handle submit button click (with debug logging)
     if (submitButton) {
+        console.log('Adding click handler to submit button');
         submitButton.addEventListener('click', function(e) {
-            console.log('Submit button clicked');
-            console.log('Button properties:', {
-                disabled: submitButton.disabled,
-                display: submitButton.style.display,
-                classList: Array.from(submitButton.classList)
-            });
-
-            // Prevent any default form submission
+            console.log('Submit button clicked (main.js handler)');
             e.preventDefault();
             
             if (validateForm()) {
@@ -70,6 +68,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // New request button handler (with null check)
     if (newRequestButton && patientForm && procedureSection) {
         newRequestButton.addEventListener('click', function() {
+            console.log('New request button clicked');
             patientForm.reset();
             if (messagesArea) messagesArea.innerHTML = '';
             chatHistory = [];
@@ -84,7 +83,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Handle form submission logic
     async function handleSubmission() {
-        if (isLoading) return;
+        console.log('handleSubmission called');
+        if (isLoading) {
+            console.log('Already loading, returning');
+            return;
+        }
         
         isLoading = true;
         showLoadingState();
@@ -155,7 +158,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
             console.log('Response received:', response.status);
             const data = await response.json();
-            console.log('Response data received');
+            console.log('Response data received:', data);
             
             if (data.show_payment) {
                 document.getElementById('payment-container').style.display = 'block';
@@ -189,6 +192,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function showLoadingState() {
+        console.log('Showing loading state');
         submitButton.disabled = true;
         const spinner = submitButton.querySelector('.spinner-border');
         const buttonText = submitButton.querySelector('.button-text');
@@ -197,6 +201,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function hideLoadingState() {
+        console.log('Hiding loading state');
         submitButton.disabled = false;
         const spinner = submitButton.querySelector('.spinner-border');
         const buttonText = submitButton.querySelector('.button-text');
@@ -205,6 +210,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function addLoadingMessage() {
+        console.log('Adding loading message');
         const loadingDiv = document.createElement('div');
         loadingDiv.className = 'message assistant-message loading-message';
         loadingDiv.innerHTML = `
@@ -227,10 +233,46 @@ document.addEventListener('DOMContentLoaded', function() {
         return loadingDiv;
     }
 
-    function addFormattedMessage(sender, text) {
+    // Add form validation before submission
+    function validateForm() {
+        const consultationType = document.querySelector('input[name="consultation-type"]:checked').value;
+        console.log('Validating form for type:', consultationType);
+
+        // For procedure type, only require procedure name
+        if (consultationType === 'procedure') {
+            const procedureName = document.getElementById('procedure-name');
+            console.log('Procedure name value:', procedureName ? procedureName.value : 'field not found');
+            
+            if (!procedureName || !procedureName.value.trim()) {
+                if (procedureName) {
+                    procedureName.classList.add('is-invalid');
+                    procedureName.focus();
+                }
+                console.log('Validation failed: Procedure name required');
+                return false;
+            }
+            
+            console.log('Validation passed: Procedure name provided');
+            return true;
+        }
+
+        return true;
+    }
+
+    function addMessage(sender, text) {
+        console.log('Adding message from:', sender);
         const messageDiv = document.createElement('div');
         messageDiv.className = `message ${sender}-message`;
-        messageDiv.innerHTML = formatMessage(text);
+        messageDiv.innerHTML = text;
+        messagesArea.appendChild(messageDiv);
+        messagesArea.scrollTop = messagesArea.scrollHeight;
+    }
+
+    function addFormattedMessage(sender, text) {
+        console.log('Adding formatted message from:', sender);
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `message ${sender}-message`;
+        messageDiv.innerHTML = text;
         messagesArea.appendChild(messageDiv);
         
         if (sender === 'user') {
@@ -242,7 +284,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Handle follow-up chat form
     chatForm.addEventListener('submit', async function(e) {
-        e.preventDefault();  // Prevent form from submitting normally
+        e.preventDefault();
+        console.log('Chat form submitted');
         
         const message = userInput.value.trim();
         if (!message) return;
@@ -294,350 +337,5 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    function formatMessage(text) {
-        // First, split the text into sections
-        const sections = text.split('\n\n');
-        
-        return sections.map(section => {
-            // Process each section
-            return section
-                // Headers (must be at start of line)
-                .replace(/^### (.*?)$/gm, '<h3>$1</h3>')
-                .replace(/^#### (.*?)$/gm, '<h4>$1</h4>')
-                
-                // Bold text
-                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                
-                // Lists (must be at start of line)
-                .replace(/^(\d+)\. (.*?)$/gm, '<div class="numbered-item"><span class="number">$1.</span> $2</div>')
-                .replace(/^- (.*?)$/gm, '<div class="bullet-item">• $1</div>')
-                
-                // Checkboxes (must be at start of line)
-                .replace(/^□ (.*?)$/gm, '<div class="checklist-item"><input type="checkbox" class="form-check-input me-2"><span>$1</span></div>')
-                
-                // Special formatting
-                .replace(/^!RISK: (.*?)$/gm, '<div class="risk-alert">⚠️ $1</div>')
-                .replace(/^\[PROTOCOL: (.*?)\]$/gm, '<div class="protocol-reference">📋 Protocol: $1</div>')
-                
-                // Replace remaining newlines with <br>
-                .replace(/\n/g, '<br>');
-        }).join('<br><br>');
-    }
-
-    // Update the style with better formatting
-    const style = document.createElement('style');
-    style.textContent = `
-        .message {
-            margin-bottom: 20px;
-            padding: 15px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-        }
-
-        .assistant-message {
-            background-color: #f8f9fa;
-            border-left: 4px solid #0d6efd;
-        }
-
-        .user-message {
-            background-color: #e3f2fd;
-            border-left: 4px solid #0d6efd;
-            text-align: right;
-        }
-
-        .numbered-item, .bullet-item {
-            margin: 8px 0;
-            padding: 8px;
-            background-color: #ffffff;
-            border-radius: 4px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-        }
-
-        .numbered-item .number {
-            font-weight: bold;
-            color: #0d6efd;
-            margin-right: 8px;
-        }
-        
-        .checklist-item {
-            display: flex;
-            align-items: flex-start;
-            margin: 8px 0;
-            padding: 12px;
-            background-color: #ffffff;
-            border-radius: 4px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-            transition: all 0.2s ease;
-        }
-        
-        .checklist-item:hover {
-            background-color: #f8f9fa;
-            transform: translateX(2px);
-        }
-        
-        .checklist-item.completed {
-            background-color: #e8f5e9;
-            color: #2e7d32;
-        }
-        
-        .checklist-item.completed span {
-            text-decoration: line-through;
-        }
-
-        .checklist-item input[type="checkbox"] {
-            margin-top: 3px;
-            margin-right: 12px;
-        }
-        
-        .risk-alert {
-            background-color: #fff3cd;
-            border: 1px solid #ffeeba;
-            color: #856404;
-            padding: 15px;
-            margin: 12px 0;
-            border-radius: 5px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-        }
-        
-        .protocol-reference {
-            background-color: #e9ecef;
-            padding: 15px;
-            margin: 12px 0;
-            border-radius: 5px;
-            font-size: 0.9em;
-            color: #495057;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-        }
-        
-        h3 {
-            font-size: 1.5em;
-            color: #2c3e50;
-            border-bottom: 2px solid #eee;
-            padding-bottom: 8px;
-            margin: 20px 0 15px 0;
-        }
-        
-        h4 {
-            font-size: 1.2em;
-            color: #34495e;
-            margin: 15px 0 10px 0;
-        }
-
-        .loading-indicator {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-            color: #666;
-        }
-
-        .loading-indicator .spinner {
-            margin-right: 10px;
-        }
-
-        .loading-state {
-            display: flex;
-            align-items: flex-start;
-            gap: 20px;
-            padding: 20px;
-            background: #f8f9fa;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-        }
-
-        .loading-animation {
-            flex-shrink: 0;
-        }
-
-        .loading-text {
-            flex-grow: 1;
-        }
-
-        .loading-text h4 {
-            margin: 0 0 10px 0;
-            color: #2c3e50;
-        }
-
-        .loading-text p {
-            margin: 0;
-            color: #666;
-            font-size: 0.9em;
-        }
-
-        .typing-indicator {
-            display: flex;
-            gap: 4px;
-        }
-
-        .typing-indicator span {
-            width: 8px;
-            height: 8px;
-            background: #0d6efd;
-            border-radius: 50%;
-            animation: typing 1.4s infinite ease-in-out;
-        }
-
-        .typing-indicator span:nth-child(1) { animation-delay: 0s; }
-        .typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
-        .typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
-
-        @keyframes typing {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-10px); }
-        }
-    `;
-    document.head.appendChild(style);
-
-    // Add checkbox functionality
-    document.addEventListener('click', function(e) {
-        if (e.target && e.target.type === 'checkbox' && e.target.closest('.checklist-item')) {
-            const item = e.target.closest('.checklist-item');
-            if (e.target.checked) {
-                item.classList.add('completed');
-            } else {
-                item.classList.remove('completed');
-            }
-        }
-    });
-
-    // Update addMessage to show loading state
-    function addMessage(sender, text) {
-        const messageDiv = document.createElement('div');
-        messageDiv.className = `message ${sender}-message`;
-        
-        if (sender === 'assistant') {
-            // Show loading indicator first
-            messageDiv.innerHTML = `
-                <div class="loading-indicator">
-                    <div class="spinner-border spinner-border-sm" role="status"></div>
-                    <span>Processing response...</span>
-                </div>
-            `;
-            messagesArea.appendChild(messageDiv);
-            
-            // Process the message after a short delay
-            setTimeout(() => {
-                const formattedText = formatMessage(text);
-                messageDiv.innerHTML = formattedText;
-            }, 100);
-        } else {
-            messageDiv.innerHTML = text;
-        }
-        
-        messagesArea.appendChild(messageDiv);
-        
-        if (sender === 'user' && userInput.style.display !== 'none') {
-            messagesArea.scrollTop = messagesArea.scrollHeight;
-        } else {
-            messagesArea.scrollTop = 0;
-        }
-    }
-
-    // Add form validation before submission
-    function validateForm() {
-        const consultationType = document.querySelector('input[name="consultation-type"]:checked').value;
-        console.log('Validating form for type:', consultationType);
-
-        // For procedure type, only require procedure name
-        if (consultationType === 'procedure') {
-            const procedureName = document.getElementById('procedure-name');
-            console.log('Procedure name value:', procedureName ? procedureName.value : 'field not found');
-            
-            if (!procedureName || !procedureName.value.trim()) {
-                if (procedureName) {
-                    procedureName.classList.add('is-invalid');
-                    procedureName.focus();
-                }
-                console.log('Validation failed: Procedure name required');
-                return false;
-            }
-            
-            console.log('Validation passed: Procedure name provided');
-            return true;
-        }
-
-        // For diagnosis type, require all fields
-        const requiredFields = {
-            'patient-age': 'Age',
-            'patient-gender': 'Gender',
-            'chief-complaint': 'Chief Complaint',
-            'bp': 'Blood Pressure',
-            'heart-rate': 'Heart Rate',
-            'temperature': 'Temperature',
-            'spo2': 'SpO2'
-        };
-
-        let isValid = true;
-        let firstInvalidField = null;
-
-        for (const [id, label] of Object.entries(requiredFields)) {
-            const field = document.getElementById(id);
-            console.log('Checking field:', id, 'Value:', field ? field.value : 'field not found');
-            
-            if (!field || !field.value) {
-                isValid = false;
-                if (field) {
-                    field.classList.add('is-invalid');
-                    if (!firstInvalidField) firstInvalidField = field;
-                }
-                console.log('Invalid field:', label);
-            } else {
-                if (field) field.classList.remove('is-invalid');
-            }
-        }
-
-        if (!isValid && firstInvalidField) {
-            firstInvalidField.focus();
-        }
-
-        console.log('Form validation result:', isValid);
-        return isValid;
-    }
-
-    document.getElementById('subscribe-button').addEventListener('click', async () => {
-        try {
-            const response = await fetch('/create-checkout-session', {
-                method: 'POST',
-            });
-            const data = await response.json();
-            
-            if (data.checkoutUrl) {
-                window.location.href = data.checkoutUrl;
-            }
-        } catch (error) {
-            console.error('Error:', error);
-            alert('Failed to initialize checkout. Please try again.');
-        }
-    });
-
-    // Show consent modal if not already accepted
-    if (!localStorage.getItem('consentAccepted')) {
-        const consentModal = new bootstrap.Modal(document.getElementById('consentModal'));
-        consentModal.show();
-    }
-
-    // Handle consent checkbox
-    document.getElementById('consentCheckbox').addEventListener('change', function() {
-        document.getElementById('acceptConsent').disabled = !this.checked;
-    });
-
-    // Handle consent acceptance
-    document.getElementById('acceptConsent').addEventListener('click', async () => {
-        if (document.getElementById('consentCheckbox').checked) {
-            const response = await fetch('/accept-consent', {
-                method: 'POST'
-            });
-            if (response.ok) {
-                document.querySelector('.alert-info').style.display = 'none';
-                document.querySelector('.main-container').style.display = 'block';
-            }
-        }
-    });
-
-    // Initially hide main container until consent
-    document.addEventListener('DOMContentLoaded', () => {
-        if (!session.get('consent_accepted')) {
-            document.querySelector('.main-container').style.display = 'none';
-        }
-    });
+    console.log('All event handlers set up');
 }); 
