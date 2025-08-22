@@ -18,4 +18,10 @@ __pycache__/
 .idea/
 
 # System files
-.DS_Store 
+.DS_Store
+
+# Epic FHIR integration
+epic_private_key.pem
+epic_public_key.pem
+logs/
+*.log 
