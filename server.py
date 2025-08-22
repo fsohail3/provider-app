@@ -137,8 +137,12 @@ class User(db.Model):
 # Update consent check
 @app.before_request
 def check_consent():
-    # Skip consent check for static files, privacy page, terms page, and the consent submission endpoint
-    if request.endpoint in ['static', 'privacy', 'terms'] or request.path == '/accept-consent':
+    # Skip consent check for static files, privacy page, terms page, Epic endpoints, and the consent submission endpoint
+    if (request.endpoint in ['static', 'privacy', 'terms'] or 
+        request.path == '/accept-consent' or
+        request.path == '/launch' or
+        request.path == '/app' or
+        request.path.startswith('/.well-known/')):
         return
     
     consent = session.get('consent_accepted')
