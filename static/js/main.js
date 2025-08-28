@@ -353,6 +353,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 procedureName: procedureName
             };
 
+            // Add practitioner role
+            const practitionerRole = document.getElementById('practitioner-role').value;
+            if (practitionerRole) {
+                patientInfo.practitionerRole = practitionerRole;
+                console.log('Practitioner role:', practitionerRole);
+            }
+
             // Only add other fields if they have values
             const optionalFields = {
                 'age': 'patient-age',

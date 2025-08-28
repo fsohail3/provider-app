@@ -208,149 +208,321 @@ def chat():
                 "show_payment": True
             })
 
+        # Get practitioner role from request
+        practitioner_role = data.get('practitionerRole', 'Unknown')
+        app.logger.info(f'Practitioner role: {practitioner_role}')
+        
+        # Get Epic patient data if available
+        epic_patient_data = session.get('epic_patient_data', {})
+        has_epic_data = bool(epic_patient_data)
+        
+        # Create enhanced system prompt with role and Epic data
+        system_prompt = create_enhanced_system_prompt(
+            data.get('consultationType'),
+            practitioner_role,
+            epic_patient_data
+        )
+        
         # Create messages array
-        messages = [{"role": "system", "content": create_system_prompt(data.get('consultationType'))}]
+        messages = [{"role": "system", "content": system_prompt}]
         
         chat_history = data.get('chatHistory', [])
         if chat_history:
             messages.extend(chat_history[-4:])
         
-        messages.append({
-            "role": "user",
-            "content": create_patient_context(data)
-        })
-
-        app.logger.info('Making OpenAI API call')
-        # Make OpenAI API call
-        completion = client.chat.completions.create(
-            model=MODEL_NAME,
+        # Add user message
+        user_message = create_user_message(data, practitioner_role, epic_patient_data)
+        messages.append({"role": "user", "content": user_message})
+        
+        app.logger.info(f'Sending request to OpenAI with {len(messages)} messages')
+        
+        # Call OpenAI
+        response = openai.ChatCompletion.create(
+            model="gpt-4",
             messages=messages,
+            max_tokens=2000,
             temperature=0.7
         )
         
-        app.logger.info('OpenAI API call successful')
+        ai_response = response.choices[0].message.content
         
-        # Update query count for trial users
-        if user.subscription_status == 'trial':
-            user.query_count += 1
-            db.session.commit()
-            app.logger.info(f'Updated query count for user {user_id}: {user.query_count}')
-
-        response_data = {
-            "response": completion.choices[0].message.content,
-            "queries_remaining": 10 - user.query_count if user.subscription_status == 'trial' else None
-        }
+        # Update user query count
+        user.query_count += 1
+        user.last_query = datetime.utcnow()
+        db.session.commit()
         
-        app.logger.info('Sending response back to client')
-        return jsonify(response_data)
-
-    except Exception as e:
-        app.logger.error(f"Error in chat route: {str(e)}", exc_info=True)
+        app.logger.info(f'AI response generated successfully. User query count: {user.query_count}')
+        
         return jsonify({
-            "response": "I apologize, but I encountered an error. Please try again."
-        }), 500
+            "response": ai_response,
+            "show_payment": False
+        })
+        
+    except Exception as e:
+        app.logger.error(f'Error in chat endpoint: {str(e)}')
+        return jsonify({"error": "An error occurred while processing your request"}), 500
 
-# Add these helper functions
-def create_system_prompt(consultation_type):
-    if consultation_type == 'diagnosis':
-        return """You are a medical AI assistant helping healthcare providers with diagnoses. 
-Structure your response in this order:
+def create_enhanced_system_prompt(consultation_type, practitioner_role, epic_patient_data):
+    """Create enhanced system prompt with role-based and Epic data integration"""
+    
+    base_prompt = f"""You are an AI healthcare assistant specialized in providing {consultation_type} guidance for healthcare professionals.
 
-1. Initial Assessment:
-   • List possible diagnoses with ICD-10 codes (format: • Diagnosis (ICD-10))
-   • Highlight immediate risk factors with '!RISK:' prefix
+**Your Role:** You are assisting a {practitioner_role} with patient care and procedure guidance.
 
-2. Recommended Testing Sequence:
-   A. Immediate Tests (to be done today):
-      • List urgent tests with CPT codes (format: • Test (CPT))
-      • Explain why each test is needed
-   
-   B. Follow-up Tests (if needed):
-      • List secondary tests with CPT codes
-      • Specify conditions that would trigger these tests
+**Key Responsibilities:**
+- Provide evidence-based recommendations
+- Highlight safety considerations specific to the {practitioner_role} role
+- Consider patient-specific factors and risks
+- Offer practical, actionable guidance
+- Maintain professional medical standards
 
-3. Next Steps Based on Test Results:
-   A. If Test A positive:
-      • Recommended actions
-      • Follow-up timeline
-   B. If Test B positive:
-      • Recommended actions
-      • Follow-up timeline
-
-4. Follow-up Plan:
-   • Recommend follow-up timeline
-   • Specify conditions requiring immediate return
-   • List symptoms to monitor
-
-5. Clinical Guidelines:
-   [PROTOCOL: guideline name]
-   • Key points from relevant guidelines
-   • Specific protocol recommendations"""
-    else:
-        return """You are a medical AI assistant helping healthcare providers with procedures. 
-Provide a clear, interactive checklist format:
-
-1. PROCEDURE CHECKLIST:
-   □ Step 1: [specific action]
-   □ Step 2: [specific action]
-   □ Step 3: [specific action]
-   (Continue with detailed steps in chronological order)
-
-2. PATIENT-SPECIFIC RISKS:
-   Based on this patient's specific conditions:
-
-   !RISK: [Risk 1 - Explain why this is a risk for this specific patient]
-   • Required precautions
-   • Specific monitoring needs
-
-   !RISK: [Risk 2 - Explain why this is a risk for this specific patient]
-   • Required precautions
-   • Specific monitoring needs
-
-   [Continue with all identified risks]
-
-3. CRITICAL CHECKPOINTS:
-   □ Pre-procedure vital signs acceptable
-   □ Required equipment verified
-   □ Patient consent obtained
-   □ Site marking verified (if applicable)
-   □ Time-out performed
-
-4. EMERGENCY RESPONSE PLAN:
-   If [specific complication] occurs:
-   • Immediate action steps
-   • Emergency contacts
-   • Critical supplies location
-
-[PROTOCOL: Relevant guideline name]
-
-Remember to:
-• Highlight any risk factors specific to this patient's conditions
-• Provide clear go/no-go criteria
-• Include specific monitoring parameters
-• Note any medication adjustments needed"""
-
-def create_patient_context(data):
-    context = f"""
-Patient Information:
-- Age: {data.get('age')}
-- Gender: {data.get('gender')}
-- Chief Complaint: {data.get('chiefComplaint')}
-- Vitals:
-  * BP: {data.get('bp')}
-  * HR: {data.get('heartRate')}
-  * Temp: {data.get('temperature')}°F
-  * SpO2: {data.get('spo2')}%
-- Known Allergies: {data.get('allergies')}
-- Medical History: {data.get('medicalHistory')}
-- Previous Test Results: {data.get('testResults')}
-- Current Medications: {data.get('medications')}
-
-Query: {data.get('query')}
+**Role-Specific Focus Areas for {practitioner_role}:**
 """
-    if data.get('consultationType') == 'procedure':
-        context = f"Procedure Requested: {data.get('procedureName')}\n" + context
-    return context 
+    
+    # Add role-specific guidance
+    role_guidance = get_role_specific_guidance(practitioner_role)
+    base_prompt += role_guidance
+    
+    # Add Epic patient data if available
+    if epic_patient_data:
+        base_prompt += "\n\n**Patient Data from Epic EHR:**\n"
+        base_prompt += format_epic_patient_data(epic_patient_data)
+    
+    base_prompt += """
+
+**Response Guidelines:**
+- Be concise but comprehensive
+- Prioritize safety and best practices
+- Consider the practitioner's specific role and scope
+- Highlight any patient-specific risks or considerations
+- Provide actionable next steps
+- Use clear, professional medical terminology
+
+**Medical Disclaimer:** This is for educational purposes only. Always use clinical judgment and follow institutional protocols.
+"""
+    
+    return base_prompt
+
+def get_role_specific_guidance(role):
+    """Get role-specific guidance for the system prompt"""
+    role_guidance = {
+        'ER Nurse': """
+- Focus on rapid assessment and triage protocols
+- Prioritize time-critical interventions
+- Consider emergency equipment and medication availability
+- Emphasize patient safety and monitoring
+- Address immediate stabilization needs""",
+        
+        'ICU Nurse': """
+- Emphasize critical care monitoring and interventions
+- Focus on hemodynamic stability and ventilation management
+- Consider medication titration and side effects
+- Address family communication and support
+- Prioritize infection control and prevention""",
+        
+        'Nurse Practitioner': """
+- Provide comprehensive assessment guidance
+- Consider diagnostic reasoning and differential diagnoses
+- Address medication management and interactions
+- Focus on patient education and follow-up planning
+- Emphasize care coordination and referrals""",
+        
+        'Medical Assistant': """
+- Focus on patient preparation and vital signs
+- Emphasize equipment setup and sterilization
+- Consider patient comfort and safety
+- Address documentation and communication
+- Prioritize infection control protocols""",
+        
+        'Surgical Technologist': """
+- Emphasize surgical equipment and instrument management
+- Focus on sterilization and aseptic technique
+- Consider surgical count and safety protocols
+- Address emergency equipment readiness
+- Prioritize specimen handling and documentation""",
+        
+        'Emergency Medical Technician': """
+- Focus on scene safety and rapid assessment
+- Emphasize basic life support interventions
+- Consider transport safety and patient monitoring
+- Address communication with medical control
+- Prioritize equipment operation and maintenance""",
+        
+        'Paramedic': """
+- Emphasize advanced life support interventions
+- Focus on cardiac monitoring and medication administration
+- Consider medical control consultation
+- Address transport safety and patient stabilization
+- Prioritize documentation and quality improvement""",
+        
+        'Phlebotomist': """
+- Focus on venipuncture technique and patient preparation
+- Emphasize specimen collection and labeling
+- Consider infection control and safety protocols
+- Address patient comfort and communication
+- Prioritize quality control and documentation""",
+        
+        'Occupational Therapist': """
+- Focus on functional assessment and therapeutic interventions
+- Emphasize equipment and adaptive device training
+- Consider patient safety and progress monitoring
+- Address home program development and instruction
+- Prioritize care coordination and follow-up planning""",
+        
+        'Lab Technologist': """
+- Emphasize test methodology and quality control
+- Focus on equipment operation and maintenance
+- Consider specimen processing and result validation
+- Address safety protocols and documentation
+- Prioritize accuracy and reliability""",
+        
+        'Lab Technician': """
+- Focus on test execution and monitoring
+- Emphasize quality control testing and verification
+- Consider equipment operation and maintenance
+- Address safety protocol compliance
+- Prioritize documentation and reporting""",
+        
+        'Patient Care Technician': """
+- Focus on basic patient care and comfort
+- Emphasize vital signs measurement and documentation
+- Consider patient safety and monitoring
+- Address equipment operation and management
+- Prioritize infection control and communication""",
+        
+        'Charge Nurse': """
+- Emphasize staff supervision and resource management
+- Focus on quality and safety oversight
+- Consider communication and coordination
+- Address emergency response preparation
+- Prioritize documentation and quality improvement""",
+        
+        'Nurse Aide': """
+- Focus on basic care and patient comfort
+- Emphasize vital signs and patient monitoring
+- Consider patient safety and positioning
+- Address equipment setup and maintenance
+- Prioritize infection control and communication""",
+        
+        'Nursing Assistant': """
+- Focus on basic care and patient comfort
+- Emphasize vital signs and patient monitoring
+- Consider patient safety and positioning
+- Address equipment setup and maintenance
+- Prioritize infection control and communication""",
+        
+        'CNA': """
+- Focus on basic care and patient comfort
+- Emphasize vital signs and patient monitoring
+- Consider patient safety and positioning
+- Address equipment setup and maintenance
+- Prioritize infection control and communication"""
+    }
+    
+    return role_guidance.get(role, """
+- Provide general healthcare guidance
+- Consider patient safety and best practices
+- Address documentation and communication
+- Prioritize quality care delivery
+- Emphasize professional standards""")
+
+def format_epic_patient_data(epic_data):
+    """Format Epic patient data for the system prompt"""
+    formatted = ""
+    
+    # Demographics
+    if epic_data.get('demographics'):
+        demo = epic_data['demographics']
+        formatted += f"- **Patient:** {demo.get('name', 'Unknown')}, Age: {demo.get('age', 'Unknown')}, Gender: {demo.get('gender', 'Unknown')}\n"
+    
+    # Vital signs
+    if epic_data.get('vital_signs'):
+        vitals = epic_data['vital_signs'][:3]  # Most recent 3
+        formatted += f"- **Recent Vitals:** {len(vitals)} readings available\n"
+    
+    # Allergies
+    if epic_data.get('allergies'):
+        active_allergies = [a for a in epic_data['allergies'] if a.get('status', '').lower() != 'inactive']
+        formatted += f"- **Active Allergies:** {len(active_allergies)} documented\n"
+    
+    # Medications
+    if epic_data.get('medications'):
+        active_meds = [m for m in epic_data['medications'] if m.get('status', '').lower() in ['active', 'active']]
+        formatted += f"- **Active Medications:** {len(active_meds)} current medications\n"
+    
+    # Conditions
+    if epic_data.get('medical_history'):
+        active_conditions = [c for c in epic_data['medical_history'] if c.get('status', '').lower() in ['active', 'recurrence', 'relapse']]
+        formatted += f"- **Active Conditions:** {len(active_conditions)} documented\n"
+    
+    # Labs
+    if epic_data.get('labs'):
+        abnormal_labs = [l for l in epic_data['labs'] if l.get('abnormal', False)]
+        formatted += f"- **Abnormal Labs:** {len(abnormal_labs)} abnormal results\n"
+    
+    # Surgeries
+    if epic_data.get('surgeries'):
+        recent_surgeries = epic_data['surgeries'][:2]  # Most recent 2
+        formatted += f"- **Recent Surgeries:** {len(recent_surgeries)} documented procedures\n"
+    
+    return formatted
+
+def create_user_message(data, practitioner_role, epic_patient_data):
+    """Create user message with role and Epic data integration"""
+    
+    # Build the user message
+    message_parts = []
+    
+    # Consultation type
+    consultation_type = data.get('consultationType', 'general')
+    message_parts.append(f"Consultation Type: {consultation_type}")
+    
+    # Practitioner role
+    message_parts.append(f"Practitioner Role: {practitioner_role}")
+    
+    # Procedure name
+    if data.get('procedureName'):
+        message_parts.append(f"Procedure: {data['procedureName']}")
+    
+    # Patient information
+    patient_info = []
+    if data.get('age'): patient_info.append(f"Age: {data['age']}")
+    if data.get('gender'): patient_info.append(f"Gender: {data['gender']}")
+    if data.get('chiefComplaint'): patient_info.append(f"Chief Complaint: {data['chiefComplaint']}")
+    
+    # Vitals
+    vitals = []
+    if data.get('bp'): vitals.append(f"BP: {data['bp']}")
+    if data.get('heartRate'): vitals.append(f"HR: {data['heartRate']} bpm")
+    if data.get('temperature'): vitals.append(f"Temp: {data['temperature']}°F")
+    if data.get('spo2'): vitals.append(f"SpO2: {data['spo2']}%")
+    
+    if vitals:
+        patient_info.append(f"Vitals: {', '.join(vitals)}")
+    
+    # Medical information
+    if data.get('allergies'): patient_info.append(f"Allergies: {data['allergies']}")
+    if data.get('medicalHistory'): patient_info.append(f"Medical History: {data['medicalHistory']}")
+    if data.get('medications'): patient_info.append(f"Medications: {data['medications']}")
+    if data.get('testResults'): patient_info.append(f"Test Results: {data['testResults']}")
+    
+    if patient_info:
+        message_parts.append(f"Patient Information: {'; '.join(patient_info)}")
+    
+    # Epic data summary
+    if epic_patient_data:
+        epic_summary = []
+        if epic_patient_data.get('demographics', {}).get('name'):
+            epic_summary.append("Epic patient data available")
+        if epic_patient_data.get('allergies'):
+            epic_summary.append(f"{len(epic_patient_data['allergies'])} allergies documented")
+        if epic_patient_data.get('medications'):
+            epic_summary.append(f"{len(epic_patient_data['medications'])} medications documented")
+        
+        if epic_summary:
+            message_parts.append(f"Epic EHR Data: {'; '.join(epic_summary)}")
+    
+    return "\n".join(message_parts)
 
 @app.route('/privacy')
 def privacy():
