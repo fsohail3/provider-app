@@ -15,6 +15,8 @@ from sqlalchemy.types import TypeDecorator, String
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import rsa, padding
 from cryptography.hazmat.backends import default_backend
+from cryptography.fernet import Fernet
+from logging.handlers import RotatingFileHandler
 import openai
 from dotenv import load_dotenv
 from typing import Dict
