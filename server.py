@@ -1,27 +1,37 @@
+#!/usr/bin/env python3
+"""
+Healthcare AI Procedure Assistant with Epic FHIR Integration
+Enhanced version with comprehensive role-based checklists and patient data integration
+"""
 import os
-from flask import Flask, request, jsonify, render_template, session, redirect, url_for, make_response
-from dotenv import load_dotenv
-from openai import OpenAI
-import stripe
-from flask_sqlalchemy import SQLAlchemy
-from datetime import datetime, timedelta
-from cryptography.fernet import Fernet
-from sqlalchemy.types import TypeDecorator, String
-import logging
-from logging.handlers import RotatingFileHandler
 import json
-# Epic FHIR integration imports
-import jwt
-from cryptography.hazmat.primitives import serialization
-from cryptography.hazmat.primitives.asymmetric import rsa
-import requests
 import base64
+import requests
+import logging
+from datetime import datetime, timedelta
+from flask import Flask, render_template, request, jsonify, redirect, url_for, session
+from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy.types import TypeDecorator, String
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import rsa, padding
+from cryptography.hazmat.backends import default_backend
+import openai
+from dotenv import load_dotenv
+from typing import Dict
 
-load_dotenv()  # This will work locally but skip if file not found
+# Import enhanced Epic FHIR client and role-based system
+from epic_fhir_client import EpicFHIRClient
+from role_based_checklist import RoleBasedChecklistGenerator
 
-client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
-MODEL_NAME = os.getenv("MODEL_NAME", "gpt-4-turbo-preview")
-stripe.api_key = os.getenv('STRIPE_SECRET_KEY')
+# Load environment variables
+load_dotenv()
+
+# Configure OpenAI
+openai.api_key = os.getenv('OPENAI_API_KEY')
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Encryption setup
 class EncryptedType(TypeDecorator):
@@ -386,12 +396,13 @@ def jwks():
     except Exception as e:
         app.logger.error(f"Error in JWK endpoint: {str(e)}")
         return jsonify({"error": "Internal server error"}), 500
+        return jsonify({"error": "Internal server error"}), 500
 
 @app.route('/launch')
 def epic_launch():
-    """Handle Epic SMART App Launch"""
+    """Handle Epic SMART App Launch with enhanced role-based system"""
     try:
-        app.logger.info("Epic launch initiated")
+        app.logger.info("🚀 Epic launch initiated with enhanced system")
         
         # Extract launch parameters from Epic
         iss = request.args.get('iss')  # Epic's FHIR server URL
@@ -411,7 +422,7 @@ def epic_launch():
             app.logger.error("Failed to exchange launch token")
             return "Launch failed", 400
         
-        app.logger.info("Successfully exchanged launch token")
+        app.logger.info("✅ Successfully exchanged launch token")
         
         # Store tokens securely in session
         session['epic_access_token'] = token_response['access_token']
@@ -421,23 +432,47 @@ def epic_launch():
         if 'refresh_token' in token_response:
             session['epic_refresh_token'] = token_response['refresh_token']
         
-        # Fetch patient context from Epic
-        patient_data = fetch_epic_patient_data(
-            token_response['access_token'],
-            token_response['patient'],
-            iss
+        # Initialize enhanced Epic FHIR client
+        epic_client = EpicFHIRClient(
+            access_token=token_response['access_token'],
+            patient_id=token_response['patient'],
+            fhir_base_url=iss
         )
         
-        # Store patient data in session
-        session['epic_patient_data'] = patient_data
+        # Fetch comprehensive patient data
+        app.logger.info("📊 Fetching comprehensive patient data from Epic")
+        patient_data = epic_client.get_comprehensive_patient_data()
         
-        app.logger.info(f"Epic patient data fetched for patient: {token_response['patient']}")
+        # Initialize role-based checklist generator
+        checklist_generator = RoleBasedChecklistGenerator()
+        
+        # Detect practitioner role
+        practitioner_role = checklist_generator.detect_practitioner_role(
+            patient_data.get('practitioner_role', {})
+        )
+        
+        app.logger.info(f"👨‍⚕️ Detected practitioner role: {practitioner_role}")
+        
+        # Generate role-based checklist
+        app.logger.info("📋 Generating role-based checklist")
+        checklist = checklist_generator.generate_role_based_checklist(
+            practitioner_role=practitioner_role,
+            patient_data=patient_data,
+            procedure_type='general'
+        )
+        
+        # Store comprehensive data in session
+        session['epic_patient_data'] = patient_data
+        session['practitioner_role'] = practitioner_role
+        session['role_based_checklist'] = checklist
+        
+        app.logger.info(f"✅ Epic integration complete - Role: {practitioner_role}, Patient: {token_response['patient']}")
         
         # Redirect to main app with Epic context
-        return redirect('/app?epic_patient=' + token_response['patient'])
+        return redirect('/app?epic_patient=' + token_response['patient'] + '&role=' + practitioner_role)
         
     except Exception as e:
-        app.logger.error(f"Error in Epic launch: {str(e)}")
+        app.logger.error(f"❌ Error in Epic launch: {str(e)}")
         return "Launch failed", 500
 
 def exchange_launch_token(iss, launch):
@@ -668,16 +703,70 @@ def parse_epic_conditions(conditions_data):
 
 @app.route('/app')
 def epic_app():
-    """Main app page with Epic integration"""
+    """Main app page with enhanced Epic integration and role-based system"""
     epic_patient = request.args.get('epic_patient')
-    epic_patient_data = session.get('epic_patient_data', {})
+    practitioner_role = request.args.get('role')
     
-    if epic_patient_data:
-        app.logger.info(f"Rendering app with Epic patient data for patient: {epic_patient}")
-        return render_template('index.html', epic_patient_data=epic_patient_data)
+    # Get comprehensive data from session
+    epic_patient_data = session.get('epic_patient_data', {})
+    session_role = session.get('practitioner_role')
+    role_based_checklist = session.get('role_based_checklist', {})
+    
+    # Use role from URL or session
+    final_role = practitioner_role or session_role or 'Unknown'
+    
+    app.logger.info(f"🎯 Rendering app with Epic data - Role: {final_role}, Patient: {epic_patient}")
+    
+    # Prepare enhanced context for template
+    context = {
+        'epic_patient_data': epic_patient_data,
+        'practitioner_role': final_role,
+        'role_based_checklist': role_based_checklist,
+        'patient_summary': _generate_patient_summary(epic_patient_data),
+        'role_info': _get_role_info(final_role),
+        'has_epic_data': bool(epic_patient_data),
+        'checklist_ready': bool(role_based_checklist)
+    }
+    
+    return render_template('index.html', **context)
+
+def _generate_patient_summary(patient_data: Dict) -> Dict:
+    """Generate a summary of patient data for display"""
+    if not patient_data:
+        return {}
+    
+    summary = {
+        'demographics': patient_data.get('demographics', {}),
+        'vital_signs_count': len(patient_data.get('vital_signs', [])),
+        'allergies_count': len(patient_data.get('allergies', [])),
+        'medications_count': len(patient_data.get('medications', [])),
+        'conditions_count': len(patient_data.get('medical_history', [])),
+        'labs_count': len(patient_data.get('labs', [])),
+        'surgeries_count': len(patient_data.get('surgeries', [])),
+        'abnormal_labs_count': len([lab for lab in patient_data.get('labs', []) if lab.get('abnormal', False)]),
+        'recent_vitals': patient_data.get('vital_signs', [])[:3],  # Most recent 3
+        'active_allergies': [allergy for allergy in patient_data.get('allergies', []) 
+                           if allergy.get('status', '').lower() != 'inactive'][:3],
+        'active_medications': [med for med in patient_data.get('medications', []) 
+                             if med.get('status', '').lower() in ['active', 'active']][:3]
+    }
+    
+    return summary
+
+def _get_role_info(role: str) -> Dict:
+    """Get information about a specific role"""
+    checklist_generator = RoleBasedChecklistGenerator()
+    supported_roles = checklist_generator.supported_roles
+    
+    if role in supported_roles:
+        return supported_roles[role]
     else:
-        app.logger.info("Rendering app without Epic patient data")
-        return render_template('index.html')
+        return {
+            'display_name': role,
+            'icon': '👨‍⚕️',
+            'priority': 999,
+            'specialties': ['general']
+        }
 
 @app.route('/accept-consent', methods=['POST'])
 def accept_consent():
