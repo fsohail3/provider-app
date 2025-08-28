@@ -22,14 +22,16 @@ from dotenv import load_dotenv
 from typing import Dict
 
 # Import enhanced Epic FHIR client and role-based system
-from epic_fhir_client import EpicFHIRClient
-from role_based_checklist import RoleBasedChecklistGenerator
+# from epic_fhir_client import EpicFHIRClient
+# from role_based_checklist import RoleBasedChecklistGenerator
 
 # Load environment variables
 load_dotenv()
 
 # Configure OpenAI
 openai.api_key = os.getenv('OPENAI_API_KEY')
+if not openai.api_key:
+    print("WARNING: OPENAI_API_KEY not found in environment variables")
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -260,6 +262,8 @@ def chat():
         
     except Exception as e:
         app.logger.error(f'Error in chat endpoint: {str(e)}')
+        import traceback
+        app.logger.error(f'Full traceback: {traceback.format_exc()}')
         return jsonify({"error": "An error occurred while processing your request"}), 500
 
 def create_enhanced_system_prompt(consultation_type, practitioner_role, epic_patient_data):
