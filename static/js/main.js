@@ -209,15 +209,25 @@ window.HealthcareApp.handleSubmission = async function() {
             return;
         }
 
+        // Remove loading message and add real response
         loadingMessage.remove();
-        window.HealthcareApp.addFormattedMessage('assistant', data.response);
         
-        if (data.queries_remaining !== null) {
+        // Check if response exists and is not empty
+        if (data.response && data.response.trim()) {
+            window.HealthcareApp.addFormattedMessage('assistant', data.response);
+        } else {
+            console.error('Empty or missing response from server');
+            window.HealthcareApp.addFormattedMessage('assistant', 'Sorry, no response was generated. Please try again.');
+        }
+        
+        if (data.queries_remaining !== null && data.queries_remaining !== undefined) {
             window.HealthcareApp.addMessage('system', `You have ${data.queries_remaining} out of 10 free queries remaining.`);
         }
         
         window.HealthcareApp.chatHistory.push({ role: 'user', content: message });
-        window.HealthcareApp.chatHistory.push({ role: 'assistant', content: data.response });
+        if (data.response) {
+            window.HealthcareApp.chatHistory.push({ role: 'assistant', content: data.response });
+        }
 
         const userInput = document.getElementById('user-input');
         const followUpButton = document.getElementById('follow-up-button');

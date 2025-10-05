@@ -1,0 +1,34 @@
+# Epic FHIR Test Configuration
+# This file contains test configuration for Epic FHIR integration
+
+# Epic App Registration
+EPIC_APP_NAME=Healthcare AI Procedure Assistant
+EPIC_APP_URL=https://provider-app-icbi.onrender.com
+EPIC_REDIRECT_URI=https://provider-app-icbi.onrender.com/launch
+
+# Epic FHIR Endpoints
+EPIC_FHIR_BASE=https://fhir.epic.com/interconnect-fhir-oauth/api/FHIR/R4
+EPIC_AUTH_URL=https://fhir.epic.com/oauth2/authorize
+EPIC_TOKEN_URL=https://fhir.epic.com/oauth2/token
+
+# Test Patient Data (Epic Sandbox)
+TEST_PATIENT_ID=example-patient-id
+TEST_ENCOUNTER_ID=example-encounter-id
+
+# Required FHIR Resources for Testing
+REQUIRED_RESOURCES=[
+    "Patient",
+    "Observation",
+    "Condition", 
+    "MedicationRequest",
+    "AllergyIntolerance",
+    "Procedure",
+    "DocumentReference"
+]
+
+# Testing Instructions
+# 1. Register app at https://fhir.epic.com/
+# 2. Get client credentials
+# 3. Test launch flow
+# 4. Extract access token
+# 5. Test FHIR endpoints
