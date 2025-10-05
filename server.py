@@ -626,7 +626,8 @@ def epic_launch():
         launch = request.args.get('launch')  # Launch token
         state = request.args.get('state')  # State parameter
         
-        app.logger.info(f"Launch parameters - iss: {iss}, launch: {launch[:10]}..., state: {state}")
+        launch_preview = (launch[:10] + '...') if launch else 'none'
+        app.logger.info(f"Launch parameters - iss: {iss}, launch: {launch_preview}, state: {state}")
         
         if not iss or not launch:
             app.logger.error("Missing required launch parameters")
@@ -642,12 +643,13 @@ def epic_launch():
         app.logger.info("✅ Successfully exchanged launch token")
         
         # Store tokens securely in session
-        session['epic_access_token'] = token_response['access_token']
+        session['epic_access_token'] = token_response.get('access_token')
         session['epic_patient_id'] = token_response.get('patient')
         session['epic_iss'] = iss
         
-        if 'refresh_token' in token_response:
-            session['epic_refresh_token'] = token_response['refresh_token']
+        refresh_token = token_response.get('refresh_token')
+        if refresh_token:
+            session['epic_refresh_token'] = refresh_token
         
         # Initialize enhanced Epic FHIR client
         # epic_client = EpicFHIRClient(
@@ -686,10 +688,18 @@ def epic_launch():
         session['practitioner_role'] = practitioner_role
         session['role_based_checklist'] = checklist
         
-        app.logger.info(f"✅ Epic integration complete - Role: {practitioner_role}, Patient: {token_response['patient']}")
+        app.logger.info(f"✅ Epic integration complete - Role: {practitioner_role}, Patient: {token_response.get('patient')}")
         
         # Redirect to main app with Epic context
-        return redirect('/app?epic_patient=' + token_response['patient'] + '&role=' + practitioner_role)
+        redirect_url = '/app'
+        qp = []
+        if token_response.get('patient'):
+            qp.append('epic_patient=' + token_response.get('patient'))
+        if practitioner_role:
+            qp.append('role=' + practitioner_role)
+        if qp:
+            redirect_url += '?' + '&'.join(qp)
+        return redirect(redirect_url)
         
     except Exception as e:
         app.logger.error(f"❌ Error in Epic launch: {str(e)}")
