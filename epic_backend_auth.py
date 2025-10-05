@@ -49,15 +49,25 @@ class EpicBackendAuth:
         self.token_expires_at = None
     
     def _load_private_key(self):
-        """Load the RSA private key from PEM file"""
+        """Load the RSA private key from ENV (EPIC_PRIVATE_KEY_PEM) or PEM file"""
+        pem_env = os.getenv('EPIC_PRIVATE_KEY_PEM')
         try:
+            if pem_env:
+                private_key = serialization.load_pem_private_key(
+                    pem_env.encode('utf-8'),
+                    password=None,
+                    backend=default_backend()
+                )
+                logger.info("✅ Private key loaded from environment variable EPIC_PRIVATE_KEY_PEM")
+                return private_key
+            # Fallback to file path
             with open(self.private_key_path, 'rb') as key_file:
                 private_key = serialization.load_pem_private_key(
                     key_file.read(),
                     password=None,
                     backend=default_backend()
                 )
-            logger.info("✅ Private key loaded successfully")
+            logger.info("✅ Private key loaded from file path")
             return private_key
         except Exception as e:
             logger.error(f"❌ Error loading private key: {str(e)}")
