@@ -157,7 +157,8 @@ def check_consent():
         request.path == '/accept-consent' or
         request.path == '/launch' or
         request.path == '/app' or
-        request.path.startswith('/.well-known/')):
+        request.path.startswith('/.well-known/') or
+        request.path.startswith('/fhir')):
         return
     
     consent = session.get('consent_accepted')
