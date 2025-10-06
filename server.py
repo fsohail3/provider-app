@@ -1042,9 +1042,15 @@ def accept_consent():
 def fhir_metadata_health():
     """Health endpoint that fetches FHIR CapabilityStatement using Backend Services auth"""
     try:
+        app.logger.info("Attempting to create Epic backend client...")
         client = create_epic_backend_client()
+        app.logger.info("Epic backend client created successfully")
+        
+        app.logger.info("Fetching FHIR metadata...")
         metadata = client.get_fhir_resource('metadata')
+        
         if metadata:
+            app.logger.info("FHIR metadata fetched successfully")
             return jsonify({
                 "status": "ok",
                 "fhirVersion": metadata.get('fhirVersion'),
@@ -1052,10 +1058,13 @@ def fhir_metadata_health():
                 "statusText": metadata.get('status')
             })
         else:
+            app.logger.error("Failed to fetch metadata - no data returned")
             return jsonify({"status": "error", "message": "Failed to fetch metadata"}), 502
     except Exception as e:
         app.logger.error(f"FHIR metadata health error: {str(e)}")
-        return jsonify({"status": "error", "message": "Internal error"}), 500
+        import traceback
+        app.logger.error(f"Full traceback: {traceback.format_exc()}")
+        return jsonify({"status": "error", "message": f"Internal error: {str(e)}"}), 500
 
 @app.route('/fhir/<resource>')
 def fhir_resource_proxy(resource: str):
