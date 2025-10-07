@@ -3,7 +3,7 @@ services:
     name: healthcare-ai-assistant
     env: python
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn wsgi:app
+    startCommand: gunicorn clean_healthcare_app:app
     envVars:
       - key: PYTHON_VERSION
         value: 3.9.0 
