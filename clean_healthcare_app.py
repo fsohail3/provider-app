@@ -262,18 +262,13 @@ def accept_consent():
         
         app.logger.info(f"Consent accepted for session: {session['session_id']}")
         
-        return jsonify({
-            'status': 'success',
-            'message': 'Consent accepted',
-            'redirect': url_for('home')
-        })
+        # Redirect to home page instead of returning JSON
+        return redirect(url_for('home'))
         
     except Exception as e:
         app.logger.error(f"Error accepting consent: {str(e)}")
-        return jsonify({
-            'status': 'error',
-            'message': str(e)
-        }), 500
+        # Return error page instead of JSON
+        return f"Error accepting consent: {str(e)}", 500
 
 @app.route('/chat', methods=['POST'])
 def chat():
