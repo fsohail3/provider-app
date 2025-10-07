@@ -11,7 +11,7 @@ from flask import Flask, render_template, request, jsonify, redirect, url_for, s
 from flask_sqlalchemy import SQLAlchemy
 from cryptography.fernet import Fernet
 from logging.handlers import RotatingFileHandler
-import openai
+# import openai  # Removed for clean deployment
 from typing import Dict
 
 # Import role-based system
