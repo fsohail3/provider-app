@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Healthcare AI Procedure Assistant with Epic FHIR Integration
+Healthcare AI Procedure Assistant
 Enhanced version with comprehensive role-based checklists and patient data integration
 """
 import os
@@ -20,14 +20,16 @@ from logging.handlers import RotatingFileHandler
 import openai
 from dotenv import load_dotenv
 from typing import Dict
-from epic_backend_auth import create_epic_backend_client
+# from epic_backend_auth import create_epic_backend_client
 
-# Import enhanced Epic FHIR client and role-based system
-# from epic_fhir_client import EpicFHIRClient
-# from role_based_checklist import RoleBasedChecklistGenerator
+# Import enhanced role-based system
+from role_based_checklist import RoleBasedChecklistGenerator
 
-# Load environment variables
-load_dotenv()
+# Load environment variables (skip if .env has issues)
+try:
+    load_dotenv()
+except:
+    print("Skipping .env file due to issues")
 
 # Configure OpenAI
 openai.api_key = os.getenv('OPENAI_API_KEY')
@@ -69,15 +71,11 @@ app.config.update(
     SECRET_KEY=os.urandom(32)
 )
 
-# Epic FHIR Configuration
-EPIC_CONFIG = {
-    "client_id": os.getenv('EPIC_CLIENT_ID'),
-    "client_secret": os.getenv('EPIC_CLIENT_SECRET'),
-    "redirect_uri": "https://provider-app-icbi.onrender.com/launch",
-    "jwks_url": "https://provider-app-icbi.onrender.com/.well-known/jwks.json",
-    "auth_method": "client_secret_basic",
-    "persistent_access": True,
-    "fhir_base_url": "https://fhir.epic.com/interconnect-fhir-oauth/api/FHIR/R4"
+# App Configuration
+APP_CONFIG = {
+    "app_name": "Healthcare AI Procedure Assistant",
+    "version": "1.0.0",
+    "description": "AI-powered healthcare procedure assistant with role-based checklists"
 }
 
 # Generate RSA key pair for JWK (do this once and store securely)
